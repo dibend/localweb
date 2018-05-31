@@ -1,9 +1,27 @@
 var express = require('express');
 var serveIndex = require('serve-index');
+var morgan = require('morgan');
+var fs = require('fs');
+var http = require('http');
+var https = require('https');
+var compression = require('compression');
 var config = require('./config');
 
 var app = express();
 
+app.use(compression());
+app.use(morgan('":remote-addr",":date[web]",":method",":url",":status",":response-time ms"'));
 app.use(express.static(config.dir), serveIndex(config.dir, {'icons': true}));
 
-app.listen(8080);
+console.log('"ip","date","method","url","status","time"');
+
+var sslKey = fs.readFileSync('ssl/localweb.key', 'utf8');
+var sslCert = fs.readFileSync('ssl/localweb.crt', 'utf8');
+
+var creds = {
+  key: sslKey,
+  cert: sslCert,
+};
+
+http.createServer(app).listen(8080);
+https.createServer(creds, app).listen(8443);
