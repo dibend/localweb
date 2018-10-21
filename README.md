@@ -21,4 +21,6 @@ Set folder to share in config.json
 
 `{ "dir": "/home/share" }`
 
+Create a folder named ssl and add ssl key and cert named localweb.key and localweb.crt
+
 run `./start.sh` to start server
