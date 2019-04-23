@@ -1,5 +1,5 @@
 # Local Web
-Serves directory over HTTP
+Serves directory over HTTP & HTTPS
 
 ## Debian Install
 
