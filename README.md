@@ -3,10 +3,7 @@ Serves directory over HTTP & HTTPS
 
 ## Debian Install
 
-Install node.js if you haven't
-
-`curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -`<br>
-`sudo apt-get install -y nodejs`
+Install node.js & npm
 
 Clone this repo
 
