@@ -57,8 +57,7 @@ To access your files using HTTP Basic Auth, open a web browser and navigate to `
 Note: Make sure to replace `your_username` and `<your_password_here>` with your actual desired credentials.
 node server.js
 ```
-
 To access your files using HTTP Basic Auth, open a web browser and navigate to `http://your_server_ip:port` (replace with the actual IP address and port number of      
 your server). You will be prompted to enter a username and password. Enter `your_username` as the username and `<your_password_here>` as the password.
 
-Note: Make sure to replace `your_username` and `<your_password_here>` with your actual desired credentials.
+Note: Make sure to replace `your_username` and `<your_password_here>` with your actual desired credentials.```
