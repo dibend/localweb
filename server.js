@@ -99,8 +99,6 @@ app.get('/upload-ui', (req, res) => {
   </html>`);
 });
 
-app.use(express.static(config.dir), serveIndex(config.dir, { icons: true }));
-
 // Add PUT endpoint for file uploads to /upload/:filename
 app.put('/upload/:filename', (req, res) => {
   const uploadDir = path.join(config.dir, 'Upload');
@@ -131,6 +129,9 @@ app.put('/upload/:filename', (req, res) => {
     res.status(500).send('Error uploading file');
   });
 });
+
+// Static file & directory listing middleware (needs to come *after* custom routes)
+app.use(express.static(config.dir), serveIndex(config.dir, { icons: true }));
 
 console.log('"ip","date","method","url","status","time"');
 
