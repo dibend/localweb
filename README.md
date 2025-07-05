@@ -1,7 +1,15 @@
 # Local Web
-Serves directory over HTTP & HTTPS
+Serves directory over HTTP & HTTPS with file upload and tree visualization
 
-Serves directory over HTTP & HTTPS on Ubuntu Server LTS
+Serves directory over HTTP & HTTPS on Ubuntu Server LTS with an integrated file upload interface and visual directory tree structure.
+
+## Features
+
+- 📁 **Visual Directory Tree**: Interactive tree view of your share folder on the root path
+- 📤 **Integrated Upload UI**: File upload interface directly on the main page
+- 🔒 **Secure Uploads**: Files can only be uploaded to the designated `/Uploads` directory
+- 🔐 **Basic Authentication**: Password-protected access to all resources
+- 📂 **Classic Directory Browser**: Original serveIndex UI preserved for subdirectory navigation
 
 ## Installation
 
@@ -65,6 +73,8 @@ If you prefer JSON, use the same keys **without** comments:
 
 > **Tip:** A sample file is available at `config.sample.json`.
 
+> **Note:** The server will automatically create an `/Uploads` subdirectory within your configured `dir` if it doesn't exist.
+
 ### Starting the server
 
 ```bash
@@ -82,17 +92,44 @@ When you access either URL you will be prompted for the username and password de
 
 ---
 
+## User Interface
+
+### Root Path (`/`)
+
+When you access the root URL, you'll see a split-screen interface:
+
+1. **Left Panel - Directory Tree**
+   - Visual ASCII-art tree structure of all files and folders
+   - Clickable links for navigation
+   - Directories shown with `/` suffix
+   - Smart sorting (directories first, then files alphabetically)
+
+2. **Right Panel - Upload Interface**
+   - Drag-and-drop or click-to-browse file selection
+   - Files automatically upload to `/Uploads` directory
+   - Real-time upload progress and status
+   - Page auto-refreshes after successful upload
+
+### Subdirectory Navigation
+
+Clicking any folder link in the tree opens the original serveIndex directory browser, maintaining the classic file browsing experience.
+
+---
+
 ## REST API
 
-| Method | Endpoint                | Description                             | Auth required |
-|--------|-------------------------|-----------------------------------------|---------------|
-| GET    | `/` / any file path     | Serves static files & directory listing | ✅            |
-| PUT    | `/upload/:filename`     | Uploads a file into `<dir>/Upload/`     | ✅            |
-| GET    | `/upload-ui`            | Simple HTML form for manual uploading   | ✅            |
+| Method | Endpoint                | Description                               | Auth required |
+|--------|-------------------------|-------------------------------------------|---------------|
+| GET    | `/`                     | New: Tree view + upload UI                | ✅            |
+| GET    | `/[path]`               | Serves files & classic directory listing  | ✅            |
+| PUT    | `/upload/:filename`     | Uploads a file to `<dir>/Uploads/`        | ✅            |
+| GET    | `/upload-ui`            | Redirects to root path `/`                | ✅            |
 
 ### `PUT /upload/:filename`
 
 * **Body:** raw bytes of the file (any content-type)
+* **Target Directory:** Files are saved to `<config.dir>/Uploads/` (changed from `/Upload/`)
+* **Security:** Path traversal protection ensures files can only be saved in the Uploads directory
 * **Success Response:** `201 Created` + `File uploaded successfully`
 * **Failure Responses:**
   * `401 Unauthorized` when credentials are missing/invalid
@@ -106,9 +143,12 @@ curl -u "<user>:<pass>" \
      "http://localhost:8080/upload/picture.jpg"
 ```
 
-### `GET /upload-ui`
+### Root Path UI (`GET /`)
 
-Opens a minimal web interface to select a local file and upload it to the server without using the command-line. The page performs a `PUT /upload/:filename` request in the background.
+The enhanced root interface provides:
+- **Tree Visualization**: Complete directory structure with clickable navigation
+- **Upload Form**: Browser-based file upload without command-line tools
+- **Responsive Design**: Works on desktop and mobile devices
 
 ---
 
@@ -135,12 +175,31 @@ Tests spin up the Express application in-memory (no ports are bound) and verify:
 ## File structure
 
 ```
-├── server.js            # Main application entry point
+├── server.js            # Main application with enhanced root UI
 ├── start.sh             # Helper script (optional)
 ├── ssl/                 # SSL certificates
 ├── config.js            # Your personal configuration (not committed)
 ├── __tests__/           # Jest test suite
+├── UPLOAD_FEATURE_README.md  # Detailed upload feature documentation
 └── README.md            # You're reading it
+```
+
+## Example Directory Structure
+
+After configuration, your share directory might look like:
+
+```
+/home/share/
+├── Documents/
+│   ├── report.pdf
+│   └── notes.txt
+├── Images/
+│   ├── photo1.jpg
+│   └── photo2.png
+├── Videos/
+│   └── demo.mp4
+└── Uploads/           # Auto-created, all uploads go here
+    └── uploaded-file.zip
 ```
 
 ---
