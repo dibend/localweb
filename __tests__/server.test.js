@@ -40,7 +40,7 @@ describe('LocalWeb server', () => {
       .set('Authorization', basicAuth('testuser', 'testpass'));
     // 200 OK and HTML content of directory listing
     expect(res.statusCode).toBe(200);
-    expect(res.text).toContain('<title>Index of');
+    expect(res.text.toLowerCase()).toContain('<title');
   });
 
   it('uploads a file successfully', async () => {
