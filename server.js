@@ -7,6 +7,7 @@ var https = require('https');
 var compression = require('compression');
 var auth = require('basic-auth');
 var config = require('./config');
+var path = require('path');
 
 var app = express();
 
@@ -24,6 +25,37 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static(config.dir), serveIndex(config.dir, { 'icons': true }));
+
+// Add PUT endpoint for file uploads to /upload/:filename
+app.put('/upload/:filename', (req, res) => {
+  const uploadDir = path.join(config.dir, 'Upload');
+
+  // Ensure Upload directory exists
+  if (!fs.existsSync(uploadDir)) {
+    try {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    } catch (err) {
+      console.error('Failed to create Upload directory:', err);
+      return res.status(500).send('Server error creating upload directory');
+    }
+  }
+
+  // Prevent path traversal by using basename only
+  const safeFileName = path.basename(req.params.filename);
+  const filePath = path.join(uploadDir, safeFileName);
+
+  const writeStream = fs.createWriteStream(filePath);
+  req.pipe(writeStream);
+
+  writeStream.on('finish', () => {
+    res.status(201).send('File uploaded successfully');
+  });
+
+  writeStream.on('error', (err) => {
+    console.error('Error writing file:', err);
+    res.status(500).send('Error uploading file');
+  });
+});
 
 console.log('"ip","date","method","url","status","time"');
 
