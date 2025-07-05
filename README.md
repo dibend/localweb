@@ -88,6 +88,7 @@ When you access either URL you will be prompted for the username and password de
 |--------|-------------------------|-----------------------------------------|---------------|
 | GET    | `/` / any file path     | Serves static files & directory listing | ✅            |
 | PUT    | `/upload/:filename`     | Uploads a file into `<dir>/Upload/`     | ✅            |
+| GET    | `/upload-ui`            | Simple HTML form for manual uploading   | ✅            |
 
 ### `PUT /upload/:filename`
 
@@ -104,6 +105,10 @@ curl -u "<user>:<pass>" \
      --upload-file ./picture.jpg \
      "http://localhost:8080/upload/picture.jpg"
 ```
+
+### `GET /upload-ui`
+
+Opens a minimal web interface to select a local file and upload it to the server without using the command-line. The page performs a `PUT /upload/:filename` request in the background.
 
 ---
 

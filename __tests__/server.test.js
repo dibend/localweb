@@ -5,8 +5,11 @@ const os = require('os');
 
 // ---- Mock configuration BEFORE importing the server ----
 jest.mock('../config', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+
   const tmpDir = path.join(os.tmpdir(), `localweb-test-${Date.now()}`);
-  // Ensure the temporary dir exists
   fs.mkdirSync(tmpDir, { recursive: true });
 
   return {
@@ -14,7 +17,7 @@ jest.mock('../config', () => {
     user: 'testuser',
     password: 'testpass',
   };
-});
+}, { virtual: true });
 
 // Now import the Express app (after mocking)
 const app = require('../server');
@@ -57,5 +60,14 @@ describe('LocalWeb server', () => {
     expect(fs.existsSync(uploadedPath)).toBe(true);
     const saved = fs.readFileSync(uploadedPath, 'utf8');
     expect(saved).toBe(testFileContent);
+  });
+
+  it('serves the upload UI page', async () => {
+    const res = await request(app)
+      .get('/upload-ui')
+      .set('Authorization', basicAuth('testuser', 'testpass'));
+
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toContain('<title>Upload File');
   });
 });
