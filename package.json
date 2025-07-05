@@ -4,7 +4,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "David DiBenedetto",
   "license": "ISC",
@@ -14,5 +14,12 @@
     "express": "^4.16.4",
     "morgan": "^1.9.1",
     "serve-index": "^1.9.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  },
+  "jest": {
+    "testEnvironment": "node"
   }
 }

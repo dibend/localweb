@@ -39,25 +39,107 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/localweb.ke
 
 ## Configuration
 
-1. Create a file named `config.json` with the following content:
+Create a configuration file named `config.js` (preferred) **or** `config.json` in the project root with the following structure:
+
+```js
+// config.js (recommended – allows comments)
+module.exports = {
+  // Absolute path to the directory you want to share
+  dir: "/home/share",
+
+  // HTTP Basic-Auth credentials
+  user: "your_username",
+  password: "your_password",
+};
+```
+
+If you prefer JSON, use the same keys **without** comments:
+
 ```json
 {
   "dir": "/home/share",
   "user": "your_username",
-  "password": "<your_password_here>"
+  "password": "your_password"
 }
 ```
-2. Start the server:
+
+> **Tip:** A sample file is available at `config.sample.json`.
+
+### Starting the server
+
 ```bash
 node server.js
+# or, for live-reload during development
+yarn nodemon server.js
 ```
 
-To access your files using HTTP Basic Auth, open a web browser and navigate to `http://your_server_ip:port` (replace with the actual IP address and port number of your server). You will be prompted to enter a username and password. Enter `your_username` as the username and `<your_password_here>` as the password.
+The application starts two listeners by default:
 
-Note: Make sure to replace `your_username` and `<your_password_here>` with your actual desired credentials.
-node server.js
+* **HTTP**  `http://<host>:8080`
+* **HTTPS** `https://<host>:8443` (requires `ssl/localweb.key` and `ssl/localweb.crt`)
+
+When you access either URL you will be prompted for the username and password defined in `config.js`.
+
+---
+
+## REST API
+
+| Method | Endpoint                | Description                             | Auth required |
+|--------|-------------------------|-----------------------------------------|---------------|
+| GET    | `/` / any file path     | Serves static files & directory listing | ✅            |
+| PUT    | `/upload/:filename`     | Uploads a file into `<dir>/Upload/`     | ✅            |
+
+### `PUT /upload/:filename`
+
+* **Body:** raw bytes of the file (any content-type)
+* **Success Response:** `201 Created` + `File uploaded successfully`
+* **Failure Responses:**
+  * `401 Unauthorized` when credentials are missing/invalid
+  * `500 Internal Server Error` if the server cannot write the file
+
+Example using `curl`:
+
+```bash
+curl -u "<user>:<pass>" \
+     --upload-file ./picture.jpg \
+     "http://localhost:8080/upload/picture.jpg"
 ```
-To access your files using HTTP Basic Auth, open a web browser and navigate to `http://your_server_ip:port` (replace with the actual IP address and port number of      
-your server). You will be prompted to enter a username and password. Enter `your_username` as the username and `<your_password_here>` as the password.
 
-Note: Make sure to replace `your_username` and `<your_password_here>` with your actual desired credentials.
+---
+
+## Running tests
+
+Unit tests are written with **Jest** and **SuperTest**.
+
+```bash
+# install dependencies (including devDependencies)
+npm install
+
+# run the test suite
+npm test
+```
+
+Tests spin up the Express application in-memory (no ports are bound) and verify:
+
+1. Authentication is enforced.
+2. Directory listing is served for authorised users.
+3. File uploads succeed and are persisted to a temporary directory.
+
+---
+
+## File structure
+
+```
+├── server.js            # Main application entry point
+├── start.sh             # Helper script (optional)
+├── ssl/                 # SSL certificates
+├── config.js            # Your personal configuration (not committed)
+├── __tests__/           # Jest test suite
+└── README.md            # You're reading it
+```
+
+---
+
+## Contributing
+
+Issues and PRs are welcome! Please provide a clear description, follow the code style in the project, and include tests for any new features.

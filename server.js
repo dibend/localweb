@@ -59,14 +59,28 @@ app.put('/upload/:filename', (req, res) => {
 
 console.log('"ip","date","method","url","status","time"');
 
-var sslKey = fs.readFileSync('ssl/localweb.key', 'utf8');
-var sslCert = fs.readFileSync('ssl/localweb.crt', 'utf8');
+// Load SSL credentials only when starting the HTTPS server
+function startServers() {
+  const sslKey = fs.readFileSync('ssl/localweb.key', 'utf8');
+  const sslCert = fs.readFileSync('ssl/localweb.crt', 'utf8');
 
-var creds = {
-  key: sslKey,
-  cert: sslCert,
-};
+  const creds = {
+    key: sslKey,
+    cert: sslCert,
+  };
 
-http.createServer(app).listen(8080);
-https.createServer(creds, app).listen(8443);
+  http.createServer(app).listen(8080, () => {
+    console.log('HTTP server listening on port 8080');
+  });
+  https.createServer(creds, app).listen(8443, () => {
+    console.log('HTTPS server listening on port 8443');
+  });
+}
+
+// Only start the servers if this file is executed directly (e.g. `node server.js`)
+if (require.main === module) {
+  startServers();
+}
+
+module.exports = app;
 
