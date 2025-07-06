@@ -68,6 +68,8 @@ mkdir ssl
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/localweb.key -out ssl/localweb.crt
 ```
 
+> **Important:** If you generated the certificate files in a different folder, be sure to **copy or move** `localweb.key` and `localweb.crt` into the `ssl/` directory that lives **inside your LocalWeb installation directory** (the same place where `server.js` is located). The server only looks for certificates in this location.
+
 ## Configuration
 
 Create a configuration file named `config.js` (preferred) **or** `config.json` in the project root with the following structure:

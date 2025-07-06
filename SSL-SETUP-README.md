@@ -276,6 +276,8 @@ openssl x509 -req -days 365 -in localweb.csr -signkey localweb.key -out localweb
 openssl pkcs12 -export -out localweb.pfx -inkey localweb.key -in localweb.crt -passout pass:localweb
 ```
 
+> **After generation, copy all resulting files (`localweb.key`, `localweb.crt`, `localweb.pfx`, and optionally `localweb.pem`) into the `ssl/` directory of your LocalWeb installation (i.e., the same folder that contains `server.js`).** The server will automatically detect certificates placed in this location.
+
 ## Security Considerations
 
 ### Private Key Protection
