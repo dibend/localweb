@@ -415,95 +415,82 @@ generate_ssl_python() {
     # Certificate details
     echo "Enter certificate details (press Enter for defaults):"
     echo
+    read -p "Country Code (2 letters) [US]: " SSL_COUNTRY
+    SSL_COUNTRY=${SSL_COUNTRY:-US}
+
+    read -p "State/Province [State]: " SSL_STATE
+    SSL_STATE=${SSL_STATE:-State}
+
+    read -p "City/Locality [City]: " SSL_CITY
+    SSL_CITY=${SSL_CITY:-City}
+
+    read -p "Organization [LocalWeb]: " SSL_ORG
+    SSL_ORG=${SSL_ORG:-LocalWeb}
+
     read -p "Common Name (hostname) [localhost]: " SSL_CN
     SSL_CN=${SSL_CN:-localhost}
-    
+
     read -p "Certificate validity (days) [365]: " SSL_DAYS
     SSL_DAYS=${SSL_DAYS:-365}
-    
+
     echo
     print_info "Generating self-signed SSL certificates using Python..."
-    
-    # Create Python script for certificate generation
-    cat > "$INSTALL_DIR/ssl/generate_cert.py" << 'EOF'
-import os
-import sys
-import datetime
+
+    # Create Python script for certificate generation (values are baked in)
+    cat > "$INSTALL_DIR/ssl/generate_cert.py" << EOF
+import datetime, ipaddress
 from cryptography import x509
 from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
 
-def generate_self_signed_cert(hostname, days):
-    # Generate private key
-    key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-    )
-    
-    # Generate certificate
+def generate():
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COUNTRY_NAME, u"US"),
-        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"State"),
-        x509.NameAttribute(NameOID.LOCALITY_NAME, u"City"),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"LocalWeb"),
-        x509.NameAttribute(NameOID.COMMON_NAME, hostname),
+        x509.NameAttribute(NameOID.COUNTRY_NAME, u"$SSL_COUNTRY"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"$SSL_STATE"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, u"$SSL_CITY"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"$SSL_ORG"),
+        x509.NameAttribute(NameOID.COMMON_NAME, u"$SSL_CN"),
     ])
-    
-    cert = x509.CertificateBuilder().subject_name(
-        subject
-    ).issuer_name(
-        issuer
-    ).public_key(
-        key.public_key()
-    ).serial_number(
-        x509.random_serial_number()
-    ).not_valid_before(
-        datetime.datetime.utcnow()
-    ).not_valid_after(
-        datetime.datetime.utcnow() + datetime.timedelta(days=days)
-    ).add_extension(
-        x509.SubjectAlternativeName([
-            x509.DNSName(hostname),
-            x509.DNSName("localhost"),
-            x509.IPAddress("127.0.0.1".encode().decode('ascii')),
-        ]),
-        critical=False,
-    ).sign(key, hashes.SHA256())
-    
-    # Write private key
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime.utcnow())
+        .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=$SSL_DAYS))
+        .add_extension(
+            x509.SubjectAlternativeName([
+                x509.DNSName(u"$SSL_CN"),
+                x509.DNSName("localhost"),
+                x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),
+            ]),
+            critical=False,
+        )
+        .sign(key, hashes.SHA256())
+    )
+
     with open("localweb.key", "wb") as f:
-        f.write(key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=serialization.NoEncryption()
-        ))
-    
-    # Write certificate
+        f.write(
+            key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
     with open("localweb.crt", "wb") as f:
         f.write(cert.public_bytes(serialization.Encoding.PEM))
-    
-    print("SSL certificate generated successfully!")
+
 
 if __name__ == "__main__":
-    hostname = sys.argv[1] if len(sys.argv) > 1 else "localhost"
-    days = int(sys.argv[2]) if len(sys.argv) > 2 else 365
-    
-    try:
-        # Try importing cryptography
-        generate_self_signed_cert(hostname, days)
-    except ImportError:
-        print("ERROR: cryptography module not found.")
-        print("Installing cryptography module...")
-        os.system(f"{sys.executable} -m pip install cryptography")
-        print("Please run the script again.")
-        sys.exit(1)
+    generate()
 EOF
-    
+
     # Run Python script
     cd "$INSTALL_DIR/ssl"
-    $PYTHON_CMD generate_cert.py "$SSL_CN" "$SSL_DAYS"
+    $PYTHON_CMD generate_cert.py
     
     if [ $? -eq 0 ] && [ -f "localweb.key" ] && [ -f "localweb.crt" ]; then
         chmod 600 localweb.key

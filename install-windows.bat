@@ -479,6 +479,7 @@ echo     from cryptography.x509.oid import NameOID
 echo     from cryptography.hazmat.primitives import hashes
 echo     from cryptography.hazmat.primitives.asymmetric import rsa
 echo     from cryptography.hazmat.primitives import serialization
+echo     import ipaddress
 echo except ImportError:
 echo     print("Installing required Python module..."^)
 echo     os.system(f"{sys.executable} -m pip install cryptography"^)
@@ -517,7 +518,7 @@ echo     ^).add_extension(
 echo         x509.SubjectAlternativeName([
 echo             x509.DNSName(hostname^),
 echo             x509.DNSName("localhost"^),
-echo             x509.IPAddress("127.0.0.1".encode(^).decode('ascii'^)^),
+echo             x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")^),
 echo         ]^),
 echo         critical=False,
 echo     ^).sign(key, hashes.SHA256(^)^)
