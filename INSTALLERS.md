@@ -237,10 +237,8 @@ identity to the browser.  On first use the browser will show a security warning
 1. **When you reach the SSL step** the installer detects whether suitable
    certificates already exist in the `ssl/` folder.
 2. **If none are found** you are offered three choices:
-   * **Generate with OpenSSL / PowerShell (recommended)** – the fastest route if
-     OpenSSL is available (Unix/macOS) or PowerShell on Windows.
-   * **Generate with Python** – pure-Python fallback that only requires the
-     `cryptography` module (the installer will install it automatically).
+   * **Generate with OpenSSL (recommended)** – Uses the OpenSSL command line tool for proper cryptographic certificate generation. Available on Unix/macOS/Linux by default, can be installed on Windows.
+   * **Generate with PowerShell PKI (Windows)** or **Python cryptography (Unix/Linux/macOS)** – Platform-specific fallback methods using built-in tools.
    * **Skip SSL setup** – an option for plain HTTP only. You can always re-run
      the wizard later by executing the installer again.
 3. The wizard then asks for the standard X.509 fields (Country, State, City,
@@ -251,15 +249,14 @@ identity to the browser.  On first use the browser will show a security warning
 
 | Platform | Files generated | Notes |
 |----------|-----------------|-------|
-| Unix / macOS | `localweb.key`, `localweb.crt` | Standard PEM pair created with OpenSSL or Python. |
-| Windows | `localweb.pfx` (and a read-only placeholder `localweb.key` / `localweb.crt`) | A single PFX bundle is produced so the private key remains exportable. The Node server now automatically detects and loads this PFX with the **passphrase `localweb`**. |
+| Unix / macOS / Linux | `localweb.key`, `localweb.crt` | Standard PEM pair created with OpenSSL or Python cryptography library. |
+| Windows | `localweb.key`, `localweb.crt` | Standard PEM pair created with OpenSSL (if available) or Windows PowerShell PKI module. |
 
 ### Trusting the certificate (optional)
 If you want to get rid of the browser warning you can import the generated
 certificate into your OS/browser trust store:
 
-* **Windows**: double-click `ssl\localweb.pfx` → *Install Certificate* → store
-  it under *Trusted Root Certification Authorities*.
+* **Windows**: Import `ssl\localweb.crt` into the Windows Certificate Store under *Trusted Root Certification Authorities* using certmgr.msc or PowerShell.
 * **macOS**: open *Keychain Access* → *File → Import Items…* and import
   `localweb.crt`. Mark it as *Always Trust*.
 * **Linux**: copy `localweb.crt` into
@@ -270,5 +267,4 @@ certificate into your OS/browser trust store:
 
 ### Regenerating or replacing the certificate
 Delete the contents of the `ssl/` folder and re-run the installer, or replace
-`localweb.key` / `localweb.crt` / `localweb.pfx` with your own certificate
-files.
+`localweb.key` / `localweb.crt` with your own certificate files.
