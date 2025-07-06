@@ -1,6 +1,11 @@
 # Local Web
 Serves directory over HTTP & HTTPS
 
+> ⚠️ **Supported Platforms**
+>
+> This project officially supports **Unix-like operating systems only** (Linux, macOS, FreeBSD, OpenBSD, and other POSIX-compliant systems).
+> There is **no official Windows support**. Windows users must adapt these instructions to their environment or use a compatibility layer such as WSL. Contributions to improve Windows compatibility are welcome but not currently maintained by the core team.
+
 Serves directory over HTTP & HTTPS on Ubuntu Server LTS
 
 ## Installation

@@ -1,5 +1,9 @@
 # File Upload and Tree Visualization Feature
 
+> ⚠️ **Supported Platforms**
+>
+> Officially supported platforms are **Unix-like operating systems only** (Linux, macOS, FreeBSD, OpenBSD, and related). There is **no official Windows support**. Windows users must adapt these instructions themselves or use WSL.
+
 ## Overview
 
 The application has been enhanced with the following features:

@@ -1,5 +1,9 @@
 # LocalWeb Server Installers Guide
 
+> ⚠️ **Supported Platforms**
+>
+> Officially supported platforms are **Unix-like operating systems only** (Linux, macOS, FreeBSD, OpenBSD, and related). There is **no official Windows support**. If you're on Windows you'll need to adapt the installers yourself or use a compatibility layer such as WSL.
+
 This guide provides detailed information about the automated installation scripts for LocalWeb Server.
 
 ## Overview
