@@ -1,5 +1,9 @@
 # LocalWeb Server - Full-Fledged SSL Certificate Setup
 
+> ⚠️ **Supported Platforms**
+>
+> Officially supported platforms are **Unix-like operating systems only** (Linux, macOS, FreeBSD, OpenBSD, and related). There is **no official Windows support**. Windows users must adapt these instructions themselves or use WSL.
+
 ## Overview
 
 LocalWeb Server now includes a comprehensive SSL certificate generation system that provides production-ready HTTPS support with proper security configurations. This system has been completely redesigned to offer enterprise-grade features while maintaining ease of use.
@@ -11,7 +15,7 @@ LocalWeb Server now includes a comprehensive SSL certificate generation system t
 - **Subject Alternative Names (SANs)** for multiple hostnames and IP addresses
 - **Auto-detection** of local network configuration
 - **Multiple certificate formats**: PEM, PKCS#12 (P12/PFX), PEM bundles
-- **Cross-platform compatibility** for Windows, Linux, and macOS
+- **Cross-platform compatibility** for Unix-like systems (Linux and macOS). Windows is not officially supported.
 
 ### 🌐 **Network-Aware Configuration**
 - **Automatic IP detection** for local network interfaces
