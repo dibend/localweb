@@ -297,6 +297,7 @@ echo.
 echo svc.on('install', function(^){
 echo   svc.start(^);
 echo   console.log('Service installed and started!'^);
+echo   process.exit(0^);
 echo }^);
 echo.
 echo svc.install(^);
