@@ -329,196 +329,188 @@ echo This wizard will help you create a self-signed SSL certificate
 echo for secure HTTPS connections to your LocalWeb Server.
 echo.
 echo Choose certificate generation method:
-echo 1) Simple OpenSSL-compatible method (Recommended)
-echo 2) Node.js built-in method
+echo 1) OpenSSL (recommended if available)
+echo 2) PowerShell PKI module
 echo 3) Skip SSL setup
 echo.
 set /p SSL_METHOD="Enter your choice (1-3): "
 
-if "!SSL_METHOD!"=="1" goto ssl_simple
-if "!SSL_METHOD!"=="2" goto ssl_nodejs
+if "!SSL_METHOD!"=="1" goto ssl_openssl
+if "!SSL_METHOD!"=="2" goto ssl_powershell
 if "!SSL_METHOD!"=="3" goto skip_ssl
 
-:: Default to simple method
-echo Invalid choice. Using simple method...
-goto ssl_simple
+:: Default to OpenSSL method
+echo Invalid choice. Using OpenSSL method...
+goto ssl_openssl
 
-:ssl_simple
+:ssl_openssl
 echo.
-echo Generating simple self-signed SSL certificates...
+echo Checking for OpenSSL...
+
+:: Check if OpenSSL is available
+where openssl >nul 2>&1
+if errorlevel 1 (
+    echo OpenSSL is not installed or not in PATH.
+    echo.
+    echo You can install OpenSSL from:
+    echo - https://slproweb.com/products/Win32OpenSSL.html
+    echo - Or through Windows package managers like Chocolatey/Scoop
+    echo.
+    echo Falling back to PowerShell PKI method...
+    goto ssl_powershell
+)
+
+echo OpenSSL found. Generating SSL certificates...
 echo.
 
-:: Create a simple Node.js script for certificate generation
-(
-echo const crypto = require('crypto'^);
-echo const fs = require('fs'^);
-echo const path = require('path'^);
-echo.
-echo function generateCertificate(^) {
-echo   try {
-echo     // Generate key pair
-echo     const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-echo       modulusLength: 2048,
-echo       publicKeyEncoding: {
-echo         type: 'spki',
-echo         format: 'pem'
-echo       },
-echo       privateKeyEncoding: {
-echo         type: 'pkcs8',
-echo         format: 'pem'
-echo       }
-echo     }^);
-echo.
-echo     // Create certificate
-echo     const cert = [
-echo       '-----BEGIN CERTIFICATE-----',
-echo       'MIICljCCAX4CCQCKnKv6rKv6rDANBgkqhkiG9w0BAQsFADCBkjELMAkGA1UEBhMC',
-echo       'VVMxEDAOBgNVBAgMB0FueXdoZXJlMRAwDgYDVQQHDAdBbnl3aGVyZTESMBAGA1UE',
-echo       'CgwJTG9jYWxXZWIxMRIwEAYDVQQLDAlMb2NhbFdlYjExEjAQBgNVBAMMCWxvY2Fs',
-echo       'aG9zdDEjMCEGCSqGSIb3DQEJARYUbm9ib2R5QGxvY2FsaG9zdC5jb20wHhcNMjMw',
-echo       'MTAxMDAwMDAwWhcNMjQwMTAxMDAwMDAwWjCBkjELMAkGA1UEBhMCVVMxEDAOBgNV',
-echo       'BAgMB0FueXdoZXJlMRAwDgYDVQQHDAdBbnl3aGVyZTESMBAGA1UECgwJTG9jYWxX',
-echo       'ZWIxMRIwEAYDVQQLDAlMb2NhbFdlYjExEjAQBgNVBAMMCWxvY2FsaG9zdDEjMCEG',
-echo       'CSqGSIb3DQEJARYUbm9ib2R5QGxvY2FsaG9zdC5jb20wgZ8wDQYJKoZIhvcNAQEB',
-echo       'BQADgY0AMIGJAoGBALx5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'BQADgYEAJ5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       '-----END CERTIFICATE-----'
-echo     ].join('\n'^);
-echo.
-echo     // Write files
-echo     fs.writeFileSync('localweb.key', privateKey^);
-echo     fs.writeFileSync('localweb.crt', cert^);
-echo.
-echo     console.log('SSL certificate generated successfully!'^);
-echo   } catch (error^) {
-echo     console.error('Error generating certificate:', error.message^);
-echo     process.exit(1^);
-echo   }
-echo }
-echo.
-echo generateCertificate(^);
-) > "!INSTALL_DIR!\ssl\generate_cert.js"
+:: Get certificate details
+echo Enter certificate details (press Enter for defaults):
+set /p SSL_COUNTRY="Country (2 letter code) [US]: "
+if "!SSL_COUNTRY!"=="" set SSL_COUNTRY=US
 
-:: Run Node.js script with timeout
+set /p SSL_STATE="State or Province [California]: "
+if "!SSL_STATE!"=="" set SSL_STATE=California
+
+set /p SSL_CITY="City [San Francisco]: "
+if "!SSL_CITY!"=="" set SSL_CITY=San Francisco
+
+set /p SSL_ORG="Organization [LocalWeb]: "
+if "!SSL_ORG!"=="" set SSL_ORG=LocalWeb
+
+set /p SSL_UNIT="Organizational Unit [IT Department]: "
+if "!SSL_UNIT!"=="" set SSL_UNIT=IT Department
+
+set /p SSL_CN="Common Name [localhost]: "
+if "!SSL_CN!"=="" set SSL_CN=localhost
+
+set /p SSL_DAYS="Certificate validity (days) [365]: "
+if "!SSL_DAYS!"=="" set SSL_DAYS=365
+
+echo.
+echo Generating self-signed SSL certificates...
+
 cd "!INSTALL_DIR!\ssl"
-timeout /t 10 node generate_cert.js >nul 2>&1
+
+:: Generate private key and certificate with OpenSSL
+openssl req -x509 -nodes -days !SSL_DAYS! -newkey rsa:2048 ^
+    -keyout localweb.key -out localweb.crt ^
+    -subj "/C=!SSL_COUNTRY!/ST=!SSL_STATE!/L=!SSL_CITY!/O=!SSL_ORG!/OU=!SSL_UNIT!/CN=!SSL_CN!" ^
+    -addext "subjectAltName=DNS:localhost,DNS:*.localhost,IP:127.0.0.1,IP:::1"
 
 if exist "localweb.key" if exist "localweb.crt" (
-    del generate_cert.js >nul 2>&1
+    echo.
     echo ✓ SSL certificates generated successfully!
     echo.
     echo Certificate details:
     echo - Location: !INSTALL_DIR!\ssl\
     echo - Certificate: localweb.crt
     echo - Private Key: localweb.key
-    echo - Valid for: 365 days
-    echo - Common Name: localhost
+    echo - Valid for: !SSL_DAYS! days
+    echo - Common Name: !SSL_CN!
 ) else (
-    del generate_cert.js >nul 2>&1
-    echo Warning: Failed to generate SSL certificates using Node.js.
-    echo Creating basic SSL files for HTTP-only mode...
-    echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.key"
-    echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.crt"
-    echo ✓ SSL setup completed (HTTP mode)
+    echo.
+    echo Error: Failed to generate SSL certificates with OpenSSL.
+    echo Falling back to PowerShell PKI method...
+    goto ssl_powershell
 )
+
 cd "!INSTALL_DIR!"
 goto ssl_done
 
-:ssl_nodejs
+:ssl_powershell
 echo.
-echo Generating SSL certificates using Node.js built-in crypto...
+echo Generating SSL certificates using PowerShell PKI module...
 echo.
 
-:: Create enhanced Node.js script for certificate generation
-(
-echo const crypto = require('crypto'^);
-echo const fs = require('fs'^);
-echo.
-echo function generateSelfSignedCert(^) {
-echo   try {
-echo     // Generate RSA key pair
-echo     const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-echo       modulusLength: 2048,
-echo       publicKeyEncoding: {
-echo         type: 'spki',
-echo         format: 'pem'
-echo       },
-echo       privateKeyEncoding: {
-echo         type: 'pkcs8',
-echo         format: 'pem'
-echo       }
-echo     }^);
-echo.
-echo     // Create a basic certificate template
-echo     const now = new Date(^);
-echo     const nextYear = new Date(now.getTime(^) + 365 * 24 * 60 * 60 * 1000^);
-echo.
-echo     // Create simple certificate content
-echo     const certContent = [
-echo       '-----BEGIN CERTIFICATE-----',
-echo       'MIICljCCAX4CCQCKnKv6rKv6rDANBgkqhkiG9w0BAQsFADCBkjELMAkGA1UEBhMC',
-echo       'VVMxEDAOBgNVBAgMB0FueXdoZXJlMRAwDgYDVQQHDAdBbnl3aGVyZTESMBAGA1UE',
-echo       'CgwJTG9jYWxXZWIxMRIwEAYDVQQLDAlMb2NhbFdlYjExEjAQBgNVBAMMCWxvY2Fs',
-echo       'aG9zdDEjMCEGCSqGSIb3DQEJARYUbm9ib2R5QGxvY2FsaG9zdC5jb20wHhcNMjMw',
-echo       'MTAxMDAwMDAwWhcNMjQwMTAxMDAwMDAwWjCBkjELMAkGA1UEBhMCVVMxEDAOBgNV',
-echo       'BAgMB0FueXdoZXJlMRAwDgYDVQQHDAdBbnl3aGVyZTESMBAGA1UECgwJTG9jYWxX',
-echo       'ZWIxMRIwEAYDVQQLDAlMb2NhbFdlYjExEjAQBgNVBAMMCWxvY2FsaG9zdDEjMCEG',
-echo       'CSqGSIb3DQEJARYUbm9ib2R5QGxvY2FsaG9zdC5jb20wgZ8wDQYJKoZIhvcNAQEB',
-echo       'BQADgY0AMIGJAoGBALx5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'BQADgYEAJ5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
-echo       '-----END CERTIFICATE-----'
-echo     ].join('\n'^);
-echo.
-echo     // Write the private key and certificate
-echo     fs.writeFileSync('localweb.key', privateKey^);
-echo     fs.writeFileSync('localweb.crt', certContent^);
-echo.
-echo     console.log('SSL certificate generated successfully!'^);
-echo   } catch (error^) {
-echo     console.error('Error generating certificate:', error.message^);
-echo     process.exit(1^);
-echo   }
-echo }
-echo.
-echo generateSelfSignedCert(^);
-) > "!INSTALL_DIR!\ssl\generate_cert.js"
+:: Get certificate details
+echo Enter certificate details (press Enter for defaults):
+set /p SSL_COUNTRY="Country (2 letter code) [US]: "
+if "!SSL_COUNTRY!"=="" set SSL_COUNTRY=US
 
-:: Run Node.js script with timeout
+set /p SSL_STATE="State or Province [California]: "
+if "!SSL_STATE!"=="" set SSL_STATE=California
+
+set /p SSL_CITY="City [San Francisco]: "
+if "!SSL_CITY!"=="" set SSL_CITY=San Francisco
+
+set /p SSL_ORG="Organization [LocalWeb]: "
+if "!SSL_ORG!"=="" set SSL_ORG=LocalWeb
+
+set /p SSL_UNIT="Organizational Unit [IT Department]: "
+if "!SSL_UNIT!"=="" set SSL_UNIT=IT Department
+
+set /p SSL_CN="Common Name [localhost]: "
+if "!SSL_CN!"=="" set SSL_CN=localhost
+
+set /p SSL_DAYS="Certificate validity (days) [365]: "
+if "!SSL_DAYS!"=="" set SSL_DAYS=365
+
+echo.
+echo Generating self-signed SSL certificates...
+
 cd "!INSTALL_DIR!\ssl"
-timeout /t 15 node generate_cert.js >nul 2>&1
+
+:: Create PowerShell script for certificate generation
+(
+echo # PowerShell PKI Certificate Generation Script
+echo $ErrorActionPreference = "Stop"
+echo.
+echo try {
+echo     # Certificate subject
+echo     $subject = "C=!SSL_COUNTRY!, ST=!SSL_STATE!, L=!SSL_CITY!, O=!SSL_ORG!, OU=!SSL_UNIT!, CN=!SSL_CN!"
+echo.
+echo     # Calculate expiration date
+echo     $notAfter = (Get-Date^).AddDays(!SSL_DAYS!^)
+echo.
+echo     # Create certificate
+echo     $cert = New-SelfSignedCertificate -Subject $subject -NotAfter $notAfter -KeyLength 2048 -KeyAlgorithm RSA -HashAlgorithm SHA256 -KeyUsage KeyEncipherment, DigitalSignature -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1", "2.5.29.17={text}DNS=localhost&DNS=*.localhost&IPAddress=127.0.0.1&IPAddress=::1"^) -CertStoreLocation "cert:\CurrentUser\My"
+echo.
+echo     # Export certificate to PEM format
+echo     $certBytes = $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert^)
+echo     $certPem = [System.Convert]::ToBase64String($certBytes, [System.Base64FormattingOptions]::InsertLineBreaks^)
+echo     $certPemContent = "-----BEGIN CERTIFICATE-----`n" + $certPem + "`n-----END CERTIFICATE-----"
+echo     [System.IO.File]::WriteAllText("localweb.crt", $certPemContent^)
+echo.
+echo     # Export private key to PEM format
+echo     $keyBytes = $cert.PrivateKey.ExportPkcs8PrivateKey(^)
+echo     $keyPem = [System.Convert]::ToBase64String($keyBytes, [System.Base64FormattingOptions]::InsertLineBreaks^)
+echo     $keyPemContent = "-----BEGIN PRIVATE KEY-----`n" + $keyPem + "`n-----END PRIVATE KEY-----"
+echo     [System.IO.File]::WriteAllText("localweb.key", $keyPemContent^)
+echo.
+echo     # Clean up certificate from store
+echo     Remove-Item "cert:\CurrentUser\My\$($cert.Thumbprint^)" -Force
+echo.
+echo     Write-Host "SSL certificate generated successfully!"
+echo } catch {
+echo     Write-Host "Error generating certificate: $($_.Exception.Message^)" -ForegroundColor Red
+echo     exit 1
+echo }
+) > "generate_cert.ps1"
+
+:: Run PowerShell script
+powershell -ExecutionPolicy Bypass -File "generate_cert.ps1"
 
 if exist "localweb.key" if exist "localweb.crt" (
-    del generate_cert.js >nul 2>&1
+    del generate_cert.ps1 >nul 2>&1
+    echo.
     echo ✓ SSL certificates generated successfully!
     echo.
     echo Certificate details:
     echo - Location: !INSTALL_DIR!\ssl\
     echo - Certificate: localweb.crt
     echo - Private Key: localweb.key
-    echo - Valid for: 365 days
-    echo - Common Name: localhost
+    echo - Valid for: !SSL_DAYS! days
+    echo - Common Name: !SSL_CN!
 ) else (
-    del generate_cert.js >nul 2>&1
-    echo Warning: Failed to generate SSL certificates.
-    echo Creating basic SSL files for HTTP-only mode...
+    del generate_cert.ps1 >nul 2>&1
+    echo.
+    echo Error: Failed to generate SSL certificates.
+    echo Creating placeholder SSL files for HTTP-only mode...
     echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.key"
     echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.crt"
     echo ✓ SSL setup completed (HTTP mode)
 )
+
 cd "!INSTALL_DIR!"
 goto ssl_done
 
