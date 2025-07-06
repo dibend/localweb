@@ -283,7 +283,7 @@ create_ssl_certs() {
     clear
     echo
     echo "==============================================="
-    echo "  Step 5: SSL Certificate Setup"
+    echo "  Step 5: SSL Certificate Setup Wizard"
     echo "==============================================="
     echo
     
@@ -298,16 +298,229 @@ create_ssl_certs() {
         fi
     fi
     
+    echo "This wizard will help you create a self-signed SSL certificate"
+    echo "for secure HTTPS connections to your LocalWeb Server."
+    echo
+    echo "Choose certificate generation method:"
+    echo "1) OpenSSL (recommended if available)"
+    echo "2) Python (alternative method)"
+    echo "3) Skip SSL setup"
+    echo
+    read -p "Enter your choice (1-3): " SSL_METHOD
+    
+    case $SSL_METHOD in
+        1)
+            generate_ssl_openssl
+            ;;
+        2)
+            generate_ssl_python
+            ;;
+        3)
+            print_warning "Skipping SSL setup. HTTPS will not be available."
+            return 0
+            ;;
+        *)
+            print_error "Invalid choice. Using OpenSSL method."
+            generate_ssl_openssl
+            ;;
+    esac
+}
+
+# Generate SSL certificate using OpenSSL
+generate_ssl_openssl() {
+    if ! command -v openssl &> /dev/null; then
+        print_error "OpenSSL is not installed."
+        echo "Would you like to try the Python method instead? (Y/n)"
+        read -p "> " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+            generate_ssl_python
+            return
+        else
+            print_error "SSL certificate generation cancelled."
+            return 1
+        fi
+    fi
+    
+    echo
+    print_info "Configuring SSL certificate details..."
+    echo
+    
+    # Certificate details
+    echo "Enter certificate details (press Enter for defaults):"
+    echo
+    read -p "Country Code (2 letters) [US]: " SSL_COUNTRY
+    SSL_COUNTRY=${SSL_COUNTRY:-US}
+    
+    read -p "State/Province [State]: " SSL_STATE
+    SSL_STATE=${SSL_STATE:-State}
+    
+    read -p "City/Locality [City]: " SSL_CITY
+    SSL_CITY=${SSL_CITY:-City}
+    
+    read -p "Organization [LocalWeb]: " SSL_ORG
+    SSL_ORG=${SSL_ORG:-LocalWeb}
+    
+    read -p "Common Name (hostname) [localhost]: " SSL_CN
+    SSL_CN=${SSL_CN:-localhost}
+    
+    read -p "Certificate validity (days) [365]: " SSL_DAYS
+    SSL_DAYS=${SSL_DAYS:-365}
+    
+    echo
     print_info "Generating self-signed SSL certificates..."
     
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    # Generate certificate with user-provided details
+    openssl req -x509 -nodes -days $SSL_DAYS -newkey rsa:2048 \
         -keyout "$INSTALL_DIR/ssl/localweb.key" \
         -out "$INSTALL_DIR/ssl/localweb.crt" \
-        -subj "/C=US/ST=State/L=City/O=LocalWeb/CN=localhost" \
+        -subj "/C=$SSL_COUNTRY/ST=$SSL_STATE/L=$SSL_CITY/O=$SSL_ORG/CN=$SSL_CN" \
         2>/dev/null
     
-    chmod 600 "$INSTALL_DIR/ssl/localweb.key"
-    print_success "SSL certificates generated"
+    if [ $? -eq 0 ]; then
+        chmod 600 "$INSTALL_DIR/ssl/localweb.key"
+        print_success "SSL certificates generated successfully!"
+        echo
+        echo "Certificate details:"
+        echo "- Location: $INSTALL_DIR/ssl/"
+        echo "- Certificate: localweb.crt"
+        echo "- Private Key: localweb.key"
+        echo "- Valid for: $SSL_DAYS days"
+        echo "- Common Name: $SSL_CN"
+    else
+        print_error "Failed to generate SSL certificates."
+        return 1
+    fi
+}
+
+# Generate SSL certificate using Python
+generate_ssl_python() {
+    if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+        print_error "Python is not installed."
+        print_info "Please install Python 3 or use the OpenSSL method."
+        return 1
+    fi
+    
+    # Determine Python command
+    if command -v python3 &> /dev/null; then
+        PYTHON_CMD="python3"
+    else
+        PYTHON_CMD="python"
+    fi
+    
+    echo
+    print_info "Configuring SSL certificate details..."
+    echo
+    
+    # Certificate details
+    echo "Enter certificate details (press Enter for defaults):"
+    echo
+    read -p "Common Name (hostname) [localhost]: " SSL_CN
+    SSL_CN=${SSL_CN:-localhost}
+    
+    read -p "Certificate validity (days) [365]: " SSL_DAYS
+    SSL_DAYS=${SSL_DAYS:-365}
+    
+    echo
+    print_info "Generating self-signed SSL certificates using Python..."
+    
+    # Create Python script for certificate generation
+    cat > "$INSTALL_DIR/ssl/generate_cert.py" << 'EOF'
+import os
+import sys
+import datetime
+from cryptography import x509
+from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+
+def generate_self_signed_cert(hostname, days):
+    # Generate private key
+    key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+    )
+    
+    # Generate certificate
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COUNTRY_NAME, u"US"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"State"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, u"City"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"LocalWeb"),
+        x509.NameAttribute(NameOID.COMMON_NAME, hostname),
+    ])
+    
+    cert = x509.CertificateBuilder().subject_name(
+        subject
+    ).issuer_name(
+        issuer
+    ).public_key(
+        key.public_key()
+    ).serial_number(
+        x509.random_serial_number()
+    ).not_valid_before(
+        datetime.datetime.utcnow()
+    ).not_valid_after(
+        datetime.datetime.utcnow() + datetime.timedelta(days=days)
+    ).add_extension(
+        x509.SubjectAlternativeName([
+            x509.DNSName(hostname),
+            x509.DNSName("localhost"),
+            x509.IPAddress("127.0.0.1".encode().decode('ascii')),
+        ]),
+        critical=False,
+    ).sign(key, hashes.SHA256())
+    
+    # Write private key
+    with open("localweb.key", "wb") as f:
+        f.write(key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption()
+        ))
+    
+    # Write certificate
+    with open("localweb.crt", "wb") as f:
+        f.write(cert.public_bytes(serialization.Encoding.PEM))
+    
+    print("SSL certificate generated successfully!")
+
+if __name__ == "__main__":
+    hostname = sys.argv[1] if len(sys.argv) > 1 else "localhost"
+    days = int(sys.argv[2]) if len(sys.argv) > 2 else 365
+    
+    try:
+        # Try importing cryptography
+        generate_self_signed_cert(hostname, days)
+    except ImportError:
+        print("ERROR: cryptography module not found.")
+        print("Installing cryptography module...")
+        os.system(f"{sys.executable} -m pip install cryptography")
+        print("Please run the script again.")
+        sys.exit(1)
+EOF
+    
+    # Run Python script
+    cd "$INSTALL_DIR/ssl"
+    $PYTHON_CMD generate_cert.py "$SSL_CN" "$SSL_DAYS"
+    
+    if [ $? -eq 0 ] && [ -f "localweb.key" ] && [ -f "localweb.crt" ]; then
+        chmod 600 localweb.key
+        rm -f generate_cert.py
+        print_success "SSL certificates generated successfully!"
+        echo
+        echo "Certificate details:"
+        echo "- Location: $INSTALL_DIR/ssl/"
+        echo "- Certificate: localweb.crt"
+        echo "- Private Key: localweb.key"
+        echo "- Valid for: $SSL_DAYS days"
+        echo "- Common Name: $SSL_CN"
+    else
+        rm -f generate_cert.py
+        print_error "Failed to generate SSL certificates."
+        return 1
+    fi
 }
 
 # Create start scripts and shortcuts
