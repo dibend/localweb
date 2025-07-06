@@ -68,36 +68,47 @@ echo  Step 1: Checking Node.js Installation
 echo ===============================================
 echo.
 
+:: Try detecting Node.js via PATH first
 node --version >nul 2>&1
 if %errorLevel% neq 0 (
-    echo Node.js is not installed.
-    echo.
-    echo Would you like to download and install Node.js? (Y/N)
-    set /p INSTALL_NODE="> "
-    
-    if /i "!INSTALL_NODE!"=="Y" (
-        echo.
-        echo Downloading Node.js installer...
-        powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi' -OutFile '%TEMP%\node-installer.msi'"
-        
-        echo Installing Node.js...
-        msiexec /i "%TEMP%\node-installer.msi" /qb
-        
-        :: Add Node.js to PATH
-        setx PATH "%PATH%;%ProgramFiles%\nodejs" /M
-        
-        echo Node.js installed successfully!
-        del "%TEMP%\node-installer.msi"
+    :: Fallback: check common install locations (ProgramFiles / ProgramFiles(x86))
+    set "_NODE_FALLBACK="
+    if exist "%ProgramFiles%\nodejs\node.exe" set "_NODE_FALLBACK=%ProgramFiles%\nodejs\node.exe"
+    if not defined _NODE_FALLBACK if exist "%ProgramFiles(x86)%\nodejs\node.exe" set "_NODE_FALLBACK=%ProgramFiles(x86)%\nodejs\node.exe"
+
+    if defined _NODE_FALLBACK (
+        for /f "tokens=*" %%i in ('"%_NODE_FALLBACK%" --version') do set "NODE_VERSION=%%i"
+        echo Node.js !NODE_VERSION! detected at %_NODE_FALLBACK%. ✓
     ) else (
+        echo Node.js is not installed.
         echo.
-        echo Node.js is required to run LocalWeb Server.
-        echo Please install Node.js manually and run this installer again.
-        echo.
-        pause
-        exit /b 1
+        echo Would you like to download and install Node.js? (Y/N)
+        set /p INSTALL_NODE="> "
+        
+        if /i "!INSTALL_NODE!"=="Y" (
+            echo.
+            echo Downloading Node.js installer...
+            powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi' -OutFile '%TEMP%\node-installer.msi'"
+            
+            echo Installing Node.js...
+            msiexec /i "%TEMP%\node-installer.msi" /qb
+            
+            :: Add Node.js to PATH
+            setx PATH "%PATH%;%ProgramFiles%\nodejs" /M
+            
+            echo Node.js installed successfully!
+            del "%TEMP%\node-installer.msi"
+        ) else (
+            echo.
+            echo Node.js is required to run LocalWeb Server.
+            echo Please install Node.js manually and run this installer again.
+            echo.
+            pause
+            exit /b 1
+        )
     )
 ) else (
-    for /f "tokens=*" %%i in ('node --version') do set NODE_VERSION=%%i
+    for /f "tokens=*" %%i in ('node --version') do set "NODE_VERSION=%%i"
     echo Node.js !NODE_VERSION! is already installed. ✓
 )
 
