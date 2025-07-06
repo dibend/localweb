@@ -5,6 +5,37 @@ Serves directory over HTTP & HTTPS on Ubuntu Server LTS
 
 ## Installation
 
+### Method 1: Using Installers (Recommended)
+
+We provide automated installation scripts for easy setup:
+
+#### Windows 11 (64-bit)
+```bash
+# Right-click and "Run as Administrator"
+install-windows.bat
+```
+
+#### Unix/Linux/macOS
+```bash
+# Make the installer executable
+chmod +x install.sh
+
+# Run the installer
+./install.sh
+```
+
+The installers will:
+- Check and install Node.js if needed
+- Set up the application with dependencies
+- Configure authentication credentials
+- Generate SSL certificates
+- Create shortcuts and optionally install as a system service
+- Configure firewall rules
+
+> **Note:** For detailed installer documentation, troubleshooting, and uninstallation instructions, see [INSTALLERS.md](INSTALLERS.md)
+
+### Method 2: Manual Installation
+
 1. Install dependencies:
 ```bash
 sudo apt-get update
