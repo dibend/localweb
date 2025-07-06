@@ -21,9 +21,14 @@ Both installers provide a guided, interactive installation process that handles 
 2. **Node.js installation**: Checks for Node.js and offers to install it if missing
 3. **File installation**: Copies application files to your chosen directory (default: `C:\Program Files\LocalWeb`)
 4. **Configuration**: Prompts for share directory, username, and password
-5. **Shortcuts**: Creates desktop and Start Menu shortcuts
-6. **Windows Service** (optional): Installs as a Windows service for automatic startup
-7. **Firewall rules**: Adds rules for ports 8080 (HTTP) and 8443 (HTTPS)
+5. **SSL certificates**: Interactive guided setup with options to:
+   - Generate certificates using OpenSSL (if available) or PowerShell
+   - Import existing certificates
+   - Configure certificate parameters
+   - Helper script (`extract-private-key.bat`) for Windows-specific key extraction
+6. **Shortcuts**: Creates desktop and Start Menu shortcuts
+7. **Windows Service** (optional): Installs as a Windows service for automatic startup
+8. **Firewall rules**: Adds rules for ports 8080 (HTTP) and 8443 (HTTPS)
 
 ### Usage
 ```batch
@@ -49,7 +54,12 @@ Both installers provide a guided, interactive installation process that handles 
 2. **Node.js installation**: Checks for Node.js and offers OS-specific installation
 3. **File installation**: Copies files to your chosen directory (default: `~/.local/share/localweb`)
 4. **Configuration**: Prompts for share directory, username, and password
-5. **SSL certificates**: Generates self-signed certificates for HTTPS
+5. **SSL certificates**: Interactive guided setup for SSL certificates with options to:
+   - Generate self-signed certificates with customizable parameters
+   - Import existing certificates
+   - Configure certificate details (country, organization, common name, etc.)
+   - Choose key size (2048/4096 bits) and validity period
+   - Automatic Subject Alternative Names (SANs) for multiple hostnames/IPs
 6. **Shortcuts**: 
    - Creates command-line shortcut (`localweb` command)
    - Creates desktop entry (Linux only)
@@ -168,9 +178,11 @@ launchctl load ~/Library/LaunchAgents/com.localweb.server.plist
 - macOS: Check System Preferences → Security & Privacy → Firewall
 
 ### SSL Certificate Issues
-- The installer creates self-signed certificates
-- Browsers will show security warnings - this is normal
+- The installer provides guided SSL certificate setup
+- For self-signed certificates, browsers will show security warnings - this is normal
 - Accept the certificate exception in your browser
+- Windows users: If OpenSSL is not available, run `ssl\extract-private-key.bat` to complete setup
+- For detailed SSL troubleshooting, see the [SSL Setup Guide](SSL_SETUP_GUIDE.md)
 
 ### Service Won't Start
 - Check logs:

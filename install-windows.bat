@@ -221,11 +221,237 @@ echo };
 ) > "!INSTALL_DIR!\config.js"
 echo ✓ Configuration saved
 
-:: Step 5: Create shortcuts and service
+:: Step 5: SSL Certificate Setup
 cls
 echo.
 echo ===============================================
-echo  Step 5: Creating Shortcuts and Service
+echo  Step 5: SSL Certificate Setup
+echo ===============================================
+echo.
+
+:: Create SSL directory
+if not exist "!INSTALL_DIR!\ssl" mkdir "!INSTALL_DIR!\ssl"
+
+:: Check for existing certificates
+if exist "!INSTALL_DIR!\ssl\localweb.key" if exist "!INSTALL_DIR!\ssl\localweb.crt" (
+    echo SSL certificates already exist.
+    echo.
+    echo What would you like to do?
+    echo 1) Use existing certificates
+    echo 2) Generate new self-signed certificates
+    echo 3) Import your own certificates
+    echo.
+    set /p SSL_OPTION="Select an option (1-3): "
+    
+    if "!SSL_OPTION!"=="1" (
+        echo ✓ Using existing certificates
+        goto :SSL_DONE
+    ) else if "!SSL_OPTION!"=="3" (
+        goto :IMPORT_CERTS
+    )
+) else (
+    echo No SSL certificates found. Let's set them up.
+    echo.
+    echo What would you like to do?
+    echo 1) Generate new self-signed certificates (recommended)
+    echo 2) Import your own certificates
+    echo 3) Skip SSL setup (not recommended)
+    echo.
+    set /p SSL_OPTION="Select an option (1-3): "
+    
+    if "!SSL_OPTION!"=="2" (
+        goto :IMPORT_CERTS
+    ) else if "!SSL_OPTION!"=="3" (
+        echo WARNING: Skipping SSL setup. HTTPS will not be available.
+        goto :SSL_DONE
+    )
+)
+
+:: Generate self-signed certificate
+echo.
+echo Let's generate a self-signed SSL certificate.
+echo.
+echo This certificate will be used to enable HTTPS access to your LocalWeb Server.
+echo Self-signed certificates will show a security warning in browsers, but are
+echo perfectly safe for local/personal use.
+echo.
+
+:: Collect certificate information
+echo Please provide the following information for your certificate:
+echo (Press Enter to use the default values)
+echo.
+
+set /p CERT_COUNTRY="Country Code (2 letters, e.g., US, UK, CA) [US]: "
+if "!CERT_COUNTRY!"=="" set CERT_COUNTRY=US
+
+set /p CERT_STATE="State or Province [LocalState]: "
+if "!CERT_STATE!"=="" set CERT_STATE=LocalState
+
+set /p CERT_CITY="City or Locality [LocalCity]: "
+if "!CERT_CITY!"=="" set CERT_CITY=LocalCity
+
+set /p CERT_ORG="Organization Name [LocalWeb Server]: "
+if "!CERT_ORG!"=="" set CERT_ORG=LocalWeb Server
+
+echo.
+echo Common Name is the domain/hostname you'll use to access the server.
+echo Examples: localhost, 192.168.1.100, myserver.local
+set /p CERT_CN="Common Name [localhost]: "
+if "!CERT_CN!"=="" set CERT_CN=localhost
+
+set /p CERT_DAYS="Certificate validity in days [365]: "
+if "!CERT_DAYS!"=="" set CERT_DAYS=365
+
+echo.
+echo Generating SSL certificate...
+
+:: First check if OpenSSL is available
+where openssl >nul 2>&1
+if %errorLevel% equ 0 (
+    :: Use OpenSSL if available
+    echo Using OpenSSL to generate certificate...
+    
+    :: Create certificate configuration file
+    (
+echo [req]
+echo default_bits = 2048
+echo prompt = no
+echo default_md = sha256
+echo distinguished_name = dn
+echo x509_extensions = v3_req
+echo.
+echo [dn]
+echo C=!CERT_COUNTRY!
+echo ST=!CERT_STATE!
+echo L=!CERT_CITY!
+echo O=!CERT_ORG!
+echo CN=!CERT_CN!
+echo.
+echo [v3_req]
+echo subjectAltName = @alt_names
+echo.
+echo [alt_names]
+echo DNS.1 = !CERT_CN!
+echo DNS.2 = localhost
+echo IP.1 = 127.0.0.1
+echo IP.2 = ::1
+    ) > "!INSTALL_DIR!\ssl\cert.conf"
+    
+    openssl req -new -x509 -days !CERT_DAYS! -nodes ^
+        -config "!INSTALL_DIR!\ssl\cert.conf" ^
+        -keyout "!INSTALL_DIR!\ssl\localweb.key" ^
+        -out "!INSTALL_DIR!\ssl\localweb.crt"
+    
+    del "!INSTALL_DIR!\ssl\cert.conf"
+) else (
+    :: Use PowerShell as fallback
+    echo Using PowerShell to generate certificate...
+    
+    :: Copy the PowerShell certificate generator script if it exists
+    if exist "ssl-cert-generator.ps1" (
+        copy /Y "ssl-cert-generator.ps1" "!INSTALL_DIR!\ssl\" >nul
+    )
+    
+    :: Run PowerShell certificate generation
+    cd "!INSTALL_DIR!"
+    powershell -ExecutionPolicy Bypass -Command "& { .\ssl\ssl-cert-generator.ps1 -Country '!CERT_COUNTRY!' -State '!CERT_STATE!' -City '!CERT_CITY!' -Organization '!CERT_ORG!' -CommonName '!CERT_CN!' -ValidDays !CERT_DAYS! -OutputPath '.\ssl' }"
+    
+    :: Alternative: Try to extract key from PFX using certutil
+    if exist "!INSTALL_DIR!\ssl\temp.pfx" (
+        echo.
+        echo Converting certificate format...
+        
+        :: Note: This is a simplified approach. For production use, 
+        :: a proper OpenSSL installation or key conversion tool would be better
+        echo WARNING: Private key conversion requires OpenSSL or manual processing.
+        echo The certificate has been generated but may need manual key extraction.
+        
+        :: Copy key extraction helper if it exists
+        if exist "extract-private-key.bat" (
+            copy /Y "extract-private-key.bat" "!INSTALL_DIR!\ssl\" >nul
+        )
+        
+        :: Create a placeholder key file with instructions
+        (
+echo # LocalWeb Server Private Key
+echo # ============================
+echo # The private key was generated but needs to be extracted from the PFX file.
+echo # 
+echo # EASY METHOD: Run the extract-private-key.bat script in the ssl folder
+echo # 
+echo # MANUAL METHOD:
+echo # To extract the key, you need OpenSSL installed:
+echo # 1. Install OpenSSL for Windows from: https://slproweb.com/products/Win32OpenSSL.html
+echo # 2. Run: openssl pkcs12 -in ssl\temp.pfx -nocerts -nodes -out ssl\localweb.key -password pass:TempPassword123!
+echo # 3. Delete the temp.pfx file
+echo #
+echo # Alternatively, use the HTTP-only mode (port 8080) until you can properly extract the key.
+        ) > "!INSTALL_DIR!\ssl\localweb.key"
+        
+        echo.
+        echo NOTE: To complete SSL setup, run: ssl\extract-private-key.bat
+        echo Or use HTTP-only mode at: http://localhost:8080
+    )
+)
+
+echo ✓ SSL certificate generated
+
+:: Save certificate information
+(
+echo LocalWeb Server SSL Certificate Information
+echo ==========================================
+echo Generated on: %DATE% %TIME%
+echo Valid for: !CERT_DAYS! days
+echo Common Name: !CERT_CN!
+echo Organization: !CERT_ORG!
+echo.
+echo Certificate Location: !INSTALL_DIR!\ssl\localweb.crt
+echo Private Key Location: !INSTALL_DIR!\ssl\localweb.key
+echo.
+echo To trust this certificate in your browser:
+echo - Chrome/Edge: Navigate to https://localhost:8443, click "Advanced" and "Proceed to localhost"
+echo - Firefox: Navigate to https://localhost:8443, click "Advanced" and "Accept the Risk and Continue"
+echo - Or import the certificate file into your browser's certificate store
+) > "!INSTALL_DIR!\ssl\certificate-info.txt"
+
+echo Certificate information saved to: !INSTALL_DIR!\ssl\certificate-info.txt
+goto :SSL_DONE
+
+:IMPORT_CERTS
+echo.
+echo Import Existing SSL Certificates
+echo.
+echo Please provide the paths to your certificate files:
+echo.
+
+set /p CERT_PATH="Path to certificate file (.crt, .pem, or .cer): "
+if not exist "!CERT_PATH!" (
+    echo ERROR: Certificate file not found: !CERT_PATH!
+    echo Skipping SSL import.
+    goto :SSL_DONE
+)
+
+set /p KEY_PATH="Path to private key file (.key or .pem): "
+if not exist "!KEY_PATH!" (
+    echo ERROR: Private key file not found: !KEY_PATH!
+    echo Skipping SSL import.
+    goto :SSL_DONE
+)
+
+echo.
+echo Importing certificates...
+copy /Y "!CERT_PATH!" "!INSTALL_DIR!\ssl\localweb.crt" >nul
+copy /Y "!KEY_PATH!" "!INSTALL_DIR!\ssl\localweb.key" >nul
+
+echo ✓ Certificates imported successfully!
+
+:SSL_DONE
+
+:: Step 6: Create shortcuts and service
+cls
+echo.
+echo ===============================================
+echo  Step 6: Creating Shortcuts and Service
 echo ===============================================
 echo.
 
@@ -306,11 +532,11 @@ echo svc.install(^);
     echo ✓ Windows service installed
 )
 
-:: Step 6: Firewall rules
+:: Step 7: Firewall rules
 cls
 echo.
 echo ===============================================
-echo  Step 6: Firewall Configuration
+echo  Step 7: Firewall Configuration
 echo ===============================================
 echo.
 

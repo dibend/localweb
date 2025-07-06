@@ -28,7 +28,7 @@ The installers will:
 - Check and install Node.js if needed
 - Set up the application with dependencies
 - Configure authentication credentials
-- Generate SSL certificates
+- **Generate SSL certificates with guided setup** (new!)
 - Create shortcuts and optionally install as a system service
 - Configure firewall rules
 
@@ -62,7 +62,7 @@ cd localweb
 npm install
 ```
 
-6. Create a folder named ssl and add ssl key and cert named localweb.key and localweb.crt:
+6. Set up SSL certificates (see [SSL Setup Guide](SSL_SETUP_GUIDE.md) for detailed instructions):
 ```bash
 mkdir ssl
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/localweb.key -out ssl/localweb.crt
@@ -95,6 +95,27 @@ If you prefer JSON, use the same keys **without** comments:
 ```
 
 > **Tip:** A sample file is available at `config.sample.json`.
+
+## SSL Certificate Setup
+
+LocalWeb Server supports HTTPS with SSL/TLS certificates. The installers now include a **guided SSL setup wizard** that helps you:
+
+- Generate self-signed certificates with customizable parameters
+- Import existing certificates
+- Configure Subject Alternative Names (SANs) for multiple hostnames/IPs
+- Choose key sizes and validity periods
+
+For detailed SSL setup instructions, see the [SSL Setup Guide](SSL_SETUP_GUIDE.md).
+
+### Quick SSL Setup
+
+For manual installation, generate a self-signed certificate:
+```bash
+mkdir -p ssl
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout ssl/localweb.key -out ssl/localweb.crt \
+  -subj "/C=US/ST=State/L=City/O=LocalWeb/CN=localhost"
+```
 
 ### Starting the server
 
