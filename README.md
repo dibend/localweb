@@ -7,15 +7,9 @@ Serves directory over HTTP & HTTPS on Ubuntu Server LTS
 
 ### Method 1: Using Installers (Recommended)
 
-We provide automated installation scripts for easy setup:
+We provide automated installation scripts for easy setup **on Linux/Unix systems only** (FreeBSD, OpenBSD, Ubuntu, Debian, Alma/Rocky, Amazon Linux, and most other modern distributions).
 
-#### Windows 11 (64-bit)
-```bash
-# Right-click and "Run as Administrator"
-install-windows.bat
-```
-
-#### Unix/Linux/macOS
+#### Unix/Linux/BSD
 ```bash
 # Make the installer executable
 chmod +x install.sh

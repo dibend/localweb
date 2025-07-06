@@ -40,6 +40,10 @@ detect_os() {
         else
             OS="linux"
         fi
+    elif [[ "$OSTYPE" == "freebsd"* ]]; then
+        OS="freebsd"
+    elif [[ "$OSTYPE" == "openbsd"* ]]; then
+        OS="openbsd"
     else
         OS="unknown"
     fi
@@ -116,6 +120,16 @@ install_nodejs() {
             ;;
         "arch"|"manjaro")
             sudo pacman -S --noconfirm nodejs npm
+            ;;
+        "freebsd")
+            sudo pkg install -y node
+            ;;
+        "openbsd")
+            if command -v sudo &> /dev/null; then
+                sudo pkg_add -I node
+            else
+                doas pkg_add -I node
+            fi
             ;;
         "macos")
             if command -v brew &> /dev/null; then
