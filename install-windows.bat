@@ -348,6 +348,18 @@ echo Configuring SSL certificate details...
 echo.
 echo Enter certificate details (press Enter for defaults):
 echo.
+set /p SSL_COUNTRY="Country Code (2 letters) [US]: "
+if "!SSL_COUNTRY!"=="" set SSL_COUNTRY=US
+
+set /p SSL_STATE="State/Province [State]: "
+if "!SSL_STATE!"=="" set SSL_STATE=State
+
+set /p SSL_CITY="City/Locality [City]: "
+if "!SSL_CITY!"=="" set SSL_CITY=City
+
+set /p SSL_ORG="Organization [LocalWeb]: "
+if "!SSL_ORG!"=="" set SSL_ORG=LocalWeb
+
 set /p SSL_CN="Common Name (hostname) [localhost]: "
 if "!SSL_CN!"=="" set SSL_CN=localhost
 
@@ -363,7 +375,7 @@ echo [Version]
 echo Signature="$Windows NT$"
 echo.
 echo [NewRequest]
-echo Subject="CN=!SSL_CN!, O=LocalWeb, L=City, S=State, C=US"
+echo Subject="CN=!SSL_CN!, O=!SSL_ORG!, L=!SSL_CITY!, S=!SSL_STATE!, C=!SSL_COUNTRY!"
 echo KeyLength=2048
 echo KeyAlgorithm=RSA
 echo MachineKeySet=False
@@ -435,6 +447,18 @@ echo Configuring SSL certificate details...
 echo.
 echo Enter certificate details (press Enter for defaults):
 echo.
+set /p SSL_COUNTRY="Country Code (2 letters) [US]: "
+if "!SSL_COUNTRY!"=="" set SSL_COUNTRY=US
+
+set /p SSL_STATE="State/Province [State]: "
+if "!SSL_STATE!"=="" set SSL_STATE=State
+
+set /p SSL_CITY="City/Locality [City]: "
+if "!SSL_CITY!"=="" set SSL_CITY=City
+
+set /p SSL_ORG="Organization [LocalWeb]: "
+if "!SSL_ORG!"=="" set SSL_ORG=LocalWeb
+
 set /p SSL_CN="Common Name (hostname) [localhost]: "
 if "!SSL_CN!"=="" set SSL_CN=localhost
 
@@ -470,10 +494,10 @@ echo     ^)
 echo     
 echo     # Generate certificate
 echo     subject = issuer = x509.Name([
-echo         x509.NameAttribute(NameOID.COUNTRY_NAME, u"US"^),
-echo         x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"State"^),
-echo         x509.NameAttribute(NameOID.LOCALITY_NAME, u"City"^),
-echo         x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"LocalWeb"^),
+echo         x509.NameAttribute(NameOID.COUNTRY_NAME, u"!SSL_COUNTRY!"^),
+echo         x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"!SSL_STATE!"^),
+echo         x509.NameAttribute(NameOID.LOCALITY_NAME, u"!SSL_CITY!"^),
+echo         x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"!SSL_ORG!"^),
 echo         x509.NameAttribute(NameOID.COMMON_NAME, hostname^),
 echo     ]^)
 echo     
