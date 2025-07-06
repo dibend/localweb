@@ -219,3 +219,56 @@ If you encounter issues:
    - Installation method used
    - Error messages
    - Steps to reproduce the problem
+
+## SSL Certificate Setup Wizard
+
+Both installers include an **interactive SSL Certificate Setup Wizard** that can
+optionally generate a *self-signed* certificate so that LocalWeb can serve
+content securely over HTTPS (port **8443**).
+
+Why self-signed?  
+LocalWeb is designed to run on a private LAN or localhost where it is not
+possible (or necessary) to obtain a public, CA-signed certificate.  A
+self-signed certificate still encrypts the traffic, it just cannot prove your
+identity to the browser.  On first use the browser will show a security warning
+– simply choose *Continue / Advanced → Proceed* to accept the certificate.
+
+### How the wizard works
+1. **When you reach the SSL step** the installer detects whether suitable
+   certificates already exist in the `ssl/` folder.
+2. **If none are found** you are offered three choices:
+   * **Generate with OpenSSL / PowerShell (recommended)** – the fastest route if
+     OpenSSL is available (Unix/macOS) or PowerShell on Windows.
+   * **Generate with Python** – pure-Python fallback that only requires the
+     `cryptography` module (the installer will install it automatically).
+   * **Skip SSL setup** – an option for plain HTTP only. You can always re-run
+     the wizard later by executing the installer again.
+3. The wizard then asks for the standard X.509 fields (Country, State, City,
+   Organisation, Common Name, validity in days). Hitting *Enter* accepts the
+   suggested default value.
+4. The resulting files are written to `ssl/` inside your chosen installation
+   directory.
+
+| Platform | Files generated | Notes |
+|----------|-----------------|-------|
+| Unix / macOS | `localweb.key`, `localweb.crt` | Standard PEM pair created with OpenSSL or Python. |
+| Windows | `localweb.pfx` (and a read-only placeholder `localweb.key` / `localweb.crt`) | A single PFX bundle is produced so the private key remains exportable. The Node server now automatically detects and loads this PFX with the **passphrase `localweb`**. |
+
+### Trusting the certificate (optional)
+If you want to get rid of the browser warning you can import the generated
+certificate into your OS/browser trust store:
+
+* **Windows**: double-click `ssl\localweb.pfx` → *Install Certificate* → store
+  it under *Trusted Root Certification Authorities*.
+* **macOS**: open *Keychain Access* → *File → Import Items…* and import
+  `localweb.crt`. Mark it as *Always Trust*.
+* **Linux**: copy `localweb.crt` into
+  `/usr/local/share/ca-certificates/` and run `sudo update-ca-certificates`.
+
+>   This step is **not required** for LocalWeb to work – it only eliminates the
+>   browser warning.
+
+### Regenerating or replacing the certificate
+Delete the contents of the `ssl/` folder and re-run the installer, or replace
+`localweb.key` / `localweb.crt` / `localweb.pfx` with your own certificate
+files.
