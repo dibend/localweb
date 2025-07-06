@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# LocalWeb Server Installation Script
-# Compatible with Unix/Linux/macOS
+# Standalone SSL Certificate Setup Script
+# For LocalWeb Server - Unix/Linux/macOS Edition
+# Version: 2.0 - Full Featured
 
 set -e  # Exit on error
 
@@ -45,305 +46,68 @@ detect_os() {
     fi
 }
 
-# Check if running as root (not recommended)
-check_root() {
-    if [ "$EUID" -eq 0 ]; then 
-        print_warning "Running as root is not recommended for security reasons."
-        read -p "Continue anyway? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
-    fi
-}
-
 # Welcome message
 show_welcome() {
     clear
     echo
     echo "==============================================="
-    echo "  LocalWeb Server Installation Wizard"
-    echo "  Unix/Linux/macOS Edition"
+    echo "  LocalWeb Server SSL Certificate Setup"
+    echo "  Full-Featured Certificate Generation"
     echo "==============================================="
     echo
-    echo "Welcome to the LocalWeb Server installation wizard."
-    echo "This wizard will guide you through the installation process."
+    echo "This script will create a comprehensive SSL certificate setup"
+    echo "for your LocalWeb Server with the following features:"
+    echo
+    echo "• Self-signed certificates with proper Subject Alternative Names"
+    echo "• Auto-detection of local IP addresses and hostnames"
+    echo "• Certificate validation and verification"
+    echo "• Multiple certificate formats (PEM, P12/PFX)"
+    echo "• Certificate management utilities"
+    echo "• Cross-platform compatibility"
     echo
     read -p "Press Enter to continue..."
 }
 
-# Check Node.js installation
-check_nodejs() {
-    clear
-    echo
-    echo "==============================================="
-    echo "  Step 1: Checking Node.js Installation"
-    echo "==============================================="
-    echo
-
-    if command -v node &> /dev/null; then
-        NODE_VERSION=$(node --version)
-        print_success "Node.js $NODE_VERSION is already installed."
-        return 0
+# Determine working directory
+determine_working_dir() {
+    # Check if we're in a LocalWeb installation directory
+    if [ -f "server.js" ] && [ -f "package.json" ]; then
+        WORK_DIR="$(pwd)"
+        print_info "Detected LocalWeb installation in current directory"
     else
-        print_error "Node.js is not installed."
-        echo
-        read -p "Would you like to install Node.js? (Y/n) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
-            install_nodejs
-        else
-            print_error "Node.js is required to run LocalWeb Server."
-            echo "Please install Node.js manually and run this installer again."
-            exit 1
-        fi
-    fi
-}
-
-# Install Node.js based on OS
-install_nodejs() {
-    print_info "Installing Node.js..."
-    
-    case $OS in
-        "ubuntu"|"debian")
-            # Install Node.js 20.x
-            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-            sudo apt-get install -y nodejs
-            ;;
-        "fedora"|"rhel"|"centos")
-            curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-            sudo yum install -y nodejs
-            ;;
-        "arch"|"manjaro")
-            sudo pacman -S --noconfirm nodejs npm
-            ;;
-        "macos")
-            if command -v brew &> /dev/null; then
-                brew install node
-            else
-                print_error "Homebrew is not installed. Please install Homebrew first:"
-                echo "Visit: https://brew.sh"
-                exit 1
+        # Look for common installation locations
+        POSSIBLE_DIRS=(
+            "$HOME/.local/share/localweb"
+            "$HOME/localweb"
+            "/opt/localweb"
+            "/usr/local/share/localweb"
+        )
+        
+        for dir in "${POSSIBLE_DIRS[@]}"; do
+            if [ -d "$dir" ] && [ -f "$dir/server.js" ]; then
+                WORK_DIR="$dir"
+                print_info "Found LocalWeb installation at: $WORK_DIR"
+                break
             fi
-            ;;
-        *)
-            print_error "Automatic Node.js installation not supported for your OS."
-            echo "Please install Node.js manually from: https://nodejs.org"
-            exit 1
-            ;;
-    esac
-    
-    print_success "Node.js installed successfully!"
-}
-
-# Choose installation directory
-choose_install_dir() {
-    clear
-    echo
-    echo "==============================================="
-    echo "  Step 2: Choose Installation Directory"
-    echo "==============================================="
-    echo
-    
-    DEFAULT_DIR="$HOME/.local/share/localweb"
-    echo "Where would you like to install LocalWeb Server?"
-    echo
-    echo "Default: $DEFAULT_DIR"
-    echo
-    read -p "Press Enter to use default or type a custom path: " INSTALL_DIR
-    
-    if [ -z "$INSTALL_DIR" ]; then
-        INSTALL_DIR="$DEFAULT_DIR"
-    fi
-    
-    # Expand ~ to home directory
-    INSTALL_DIR="${INSTALL_DIR/#\~/$HOME}"
-    
-    echo
-    print_info "Installation directory: $INSTALL_DIR"
-    echo
-    
-    if [ -d "$INSTALL_DIR" ]; then
-        print_warning "Directory already exists. Existing files will be overwritten."
-        read -p "Continue? (Y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
-            echo "Installation cancelled."
-            exit 0
+        done
+        
+        if [ -z "$WORK_DIR" ]; then
+            echo "LocalWeb installation not found. Please specify the directory:"
+            read -p "Enter LocalWeb directory path: " WORK_DIR
+            
+            if [ ! -d "$WORK_DIR" ]; then
+                print_warning "Directory doesn't exist. Creating: $WORK_DIR"
+                mkdir -p "$WORK_DIR"
+            fi
         fi
     fi
     
-    mkdir -p "$INSTALL_DIR"
-}
-
-# Copy application files
-install_files() {
-    clear
-    echo
-    echo "==============================================="
-    echo "  Step 3: Installing Application Files"
-    echo "==============================================="
-    echo
+    # Create ssl directory
+    SSL_DIR="$WORK_DIR/ssl"
+    mkdir -p "$SSL_DIR"
     
-    print_info "Copying application files..."
-    
-    # Get the directory where the installer is located
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-    
-    # Copy files, excluding certain directories and files
-    if command -v rsync &> /dev/null; then
-        rsync -av --exclude='.git' --exclude='node_modules' --exclude='config.js' \
-                  --exclude='ssl' --exclude='install.sh' --exclude='install-windows.bat' \
-                  "$SCRIPT_DIR/" "$INSTALL_DIR/"
-    else
-        # Fallback to cp if rsync is not available
-        cp -R "$SCRIPT_DIR"/* "$INSTALL_DIR/" 2>/dev/null
-        # Clean up files that should be excluded
-        rm -rf "$INSTALL_DIR/.git" "$INSTALL_DIR/node_modules" "$INSTALL_DIR/config.js" \
-               "$INSTALL_DIR/ssl" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/install-windows.bat" 2>/dev/null
-    fi
-    
-    print_success "Application files copied"
-    
-    cd "$INSTALL_DIR"
-    
-    print_info "Installing dependencies..."
-    npm install --production
-    print_success "Dependencies installed"
-}
-
-# Configure the application
-configure_app() {
-    clear
-    echo
-    echo "==============================================="
-    echo "  Step 4: Configuration"
-    echo "==============================================="
-    echo
-    
-    print_info "Let's configure your LocalWeb Server."
-    echo
-    
-    # Share directory
-    DEFAULT_SHARE="$HOME/LocalWebShare"
-    echo "Enter the directory path you want to share:"
-    echo "(Default: $DEFAULT_SHARE)"
-    read -p "> " SHARE_DIR
-    
-    if [ -z "$SHARE_DIR" ]; then
-        SHARE_DIR="$DEFAULT_SHARE"
-    fi
-    
-    # Expand ~ to home directory
-    SHARE_DIR="${SHARE_DIR/#\~/$HOME}"
-    
-    # Create share directory if it doesn't exist
-    if [ ! -d "$SHARE_DIR" ]; then
-        mkdir -p "$SHARE_DIR"
-        mkdir -p "$SHARE_DIR/Uploads"
-        print_success "Created share directory: $SHARE_DIR"
-    fi
-    
-    # Username
-    echo
-    echo "Enter username for authentication:"
-    echo "(Default: admin)"
-    read -p "> " AUTH_USER
-    
-    if [ -z "$AUTH_USER" ]; then
-        AUTH_USER="admin"
-    fi
-    
-    # Password
-    echo
-    echo "Enter password for authentication:"
-    read -s -p "> " AUTH_PASS
-    echo
-    
-    if [ -z "$AUTH_PASS" ]; then
-        AUTH_PASS="localweb123"
-        print_warning "Using default password: localweb123"
-    fi
-    
-    # Create config.js
-    print_info "Creating configuration file..."
-    cat > "$INSTALL_DIR/config.js" << EOF
-module.exports = {
-  dir: '$SHARE_DIR',
-  user: '$AUTH_USER',
-  password: '$AUTH_PASS'
-};
-EOF
-    
-    print_success "Configuration saved"
-}
-
-# Create SSL certificates
-create_ssl_certs() {
-    clear
-    echo
-    echo "==============================================="
-    echo "  Step 5: Full SSL Certificate Setup Wizard"
-    echo "==============================================="
-    echo
-    
-    mkdir -p "$INSTALL_DIR/ssl"
-    
-    # Check for existing certificates
-    if [ -f "$INSTALL_DIR/ssl/localweb.key" ] && [ -f "$INSTALL_DIR/ssl/localweb.crt" ]; then
-        print_info "SSL certificates already exist."
-        echo
-        echo "Certificate Information:"
-        if command -v openssl &> /dev/null; then
-            echo "Subject: $(openssl x509 -noout -subject -in "$INSTALL_DIR/ssl/localweb.crt" 2>/dev/null | sed 's/subject=//')"
-            echo "Issuer: $(openssl x509 -noout -issuer -in "$INSTALL_DIR/ssl/localweb.crt" 2>/dev/null | sed 's/issuer=//')"
-            echo "Valid until: $(openssl x509 -noout -enddate -in "$INSTALL_DIR/ssl/localweb.crt" 2>/dev/null | sed 's/notAfter=//')"
-            echo "SANs: $(openssl x509 -noout -ext subjectAltName -in "$INSTALL_DIR/ssl/localweb.crt" 2>/dev/null | grep -v "X509v3 Subject Alternative Name" | tr -d ' ')"
-        fi
-        echo
-        read -p "Generate new certificates? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            return 0
-        fi
-    fi
-    
-    echo "This wizard will create a comprehensive SSL certificate setup"
-    echo "for secure HTTPS connections to your LocalWeb Server."
-    echo
-    echo "Features included:"
-    echo "• Self-signed certificates with proper Subject Alternative Names"
-    echo "• Auto-detection of local IP addresses"
-    echo "• Certificate validation and verification"
-    echo "• Multiple certificate formats (PEM, P12/PFX)"
-    echo "• Certificate management utilities"
-    echo
-    echo "Choose certificate generation method:"
-    echo "1) OpenSSL (recommended - full featured)"
-    echo "2) Python cryptography (alternative method)"
-    echo "3) Skip SSL setup"
-    echo
-    read -p "Enter your choice (1-3): " SSL_METHOD
-    
-    case $SSL_METHOD in
-        1)
-            generate_ssl_openssl_enhanced
-            ;;
-        2)
-            generate_ssl_python_enhanced
-            ;;
-        3)
-            print_warning "Skipping SSL setup. HTTPS will not be available."
-            return 0
-            ;;
-        *)
-            print_error "Invalid choice. Using OpenSSL method."
-            generate_ssl_openssl_enhanced
-            ;;
-    esac
-    
-    # Create certificate management utilities
-    create_ssl_utilities
+    echo "Working directory: $WORK_DIR"
+    echo "SSL directory: $SSL_DIR"
 }
 
 # Auto-detect local IP addresses for SANs
@@ -365,6 +129,57 @@ get_local_ips() {
     
     # Combine and deduplicate
     echo "$ips $all_ips" | tr ' ' '\n' | sort -u | grep -v '^$' | grep -v '127.0.0.1' | head -5
+}
+
+# Check for existing certificates
+check_existing_certificates() {
+    if [ -f "$SSL_DIR/localweb.key" ] && [ -f "$SSL_DIR/localweb.crt" ]; then
+        print_info "SSL certificates already exist."
+        echo
+        echo "Certificate Information:"
+        if command -v openssl &> /dev/null; then
+            echo "Subject: $(openssl x509 -noout -subject -in "$SSL_DIR/localweb.crt" 2>/dev/null | sed 's/subject=//')"
+            echo "Issuer: $(openssl x509 -noout -issuer -in "$SSL_DIR/localweb.crt" 2>/dev/null | sed 's/issuer=//')"
+            echo "Valid until: $(openssl x509 -noout -enddate -in "$SSL_DIR/localweb.crt" 2>/dev/null | sed 's/notAfter=//')"
+            echo "SANs: $(openssl x509 -noout -ext subjectAltName -in "$SSL_DIR/localweb.crt" 2>/dev/null | grep -v "X509v3 Subject Alternative Name" | tr -d ' ')"
+        fi
+        echo
+        read -p "Generate new certificates? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Keeping existing certificates."
+            create_ssl_utilities
+            exit 0
+        fi
+    fi
+}
+
+# Choose SSL method
+choose_ssl_method() {
+    echo
+    echo "Choose certificate generation method:"
+    echo "1) OpenSSL (recommended - full featured)"
+    echo "2) Python cryptography (alternative method)"
+    echo "3) Exit"
+    echo
+    read -p "Enter your choice (1-3): " SSL_METHOD
+    
+    case $SSL_METHOD in
+        1)
+            generate_ssl_openssl_enhanced
+            ;;
+        2)
+            generate_ssl_python_enhanced
+            ;;
+        3)
+            print_info "Exiting SSL setup."
+            exit 0
+            ;;
+        *)
+            print_error "Invalid choice. Using OpenSSL method."
+            generate_ssl_openssl_enhanced
+            ;;
+    esac
 }
 
 # Enhanced OpenSSL certificate generation
@@ -452,7 +267,7 @@ generate_ssl_openssl_enhanced() {
     echo
     print_info "Generating comprehensive SSL certificates..."
     
-    cd "$INSTALL_DIR/ssl"
+    cd "$SSL_DIR"
     
     # Create OpenSSL configuration file
     cat > openssl.conf << EOF
@@ -515,19 +330,24 @@ EOF
     print_info "Generating PKCS#12 certificate..."
     openssl pkcs12 -export -out localweb.pfx -inkey localweb.key -in localweb.crt -passout pass:localweb 2>/dev/null
     
+    # Generate PEM bundle
+    print_info "Generating PEM bundle..."
+    cat localweb.crt localweb.key > localweb.pem
+    
     # Set appropriate permissions
     chmod 600 localweb.key localweb.pfx
-    chmod 644 localweb.crt
+    chmod 644 localweb.crt localweb.pem
     
     # Verify certificate
     if openssl x509 -noout -text -in localweb.crt >/dev/null 2>&1; then
         print_success "SSL certificates generated successfully!"
         echo
         echo "Certificate details:"
-        echo "- Location: $INSTALL_DIR/ssl/"
+        echo "- Location: $SSL_DIR/"
         echo "- Certificate: localweb.crt"
         echo "- Private Key: localweb.key"
         echo "- PKCS#12 Bundle: localweb.pfx (password: localweb)"
+        echo "- PEM Bundle: localweb.pem"
         echo "- Valid for: $SSL_DAYS days"
         echo "- Common Name: $SSL_CN"
         echo "- Subject Alternative Names:"
@@ -537,11 +357,11 @@ EOF
         rm -f localweb.csr openssl.conf
     else
         print_error "Failed to generate SSL certificates."
-        rm -f localweb.key localweb.crt localweb.csr localweb.pfx openssl.conf
+        rm -f localweb.key localweb.crt localweb.csr localweb.pfx localweb.pem openssl.conf
         return 1
     fi
     
-    cd "$INSTALL_DIR"
+    cd "$WORK_DIR"
 }
 
 # Enhanced Python certificate generation
@@ -616,7 +436,7 @@ generate_ssl_python_enhanced() {
     echo
     print_info "Generating comprehensive SSL certificates using Python..."
 
-    cd "$INSTALL_DIR/ssl"
+    cd "$SSL_DIR"
 
     # Create enhanced Python script for certificate generation
     cat > generate_cert.py << EOF
@@ -756,6 +576,15 @@ def generate():
     with open("localweb.pfx", "wb") as f:
         f.write(p12_data)
     
+    # Write PEM bundle
+    with open("localweb.pem", "wb") as f:
+        f.write(cert.public_bytes(serialization.Encoding.PEM))
+        f.write(private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        ))
+    
     print("SSL certificates generated successfully!")
     print(f"Certificate valid for $SSL_DAYS days")
     print(f"Subject Alternative Names: {len(san_list)} entries")
@@ -769,16 +598,17 @@ EOF
     
     if [ $? -eq 0 ] && [ -f "localweb.key" ] && [ -f "localweb.crt" ]; then
         chmod 600 localweb.key localweb.pfx
-        chmod 644 localweb.crt
+        chmod 644 localweb.crt localweb.pem
         rm -f generate_cert.py
         
         print_success "SSL certificates generated successfully!"
         echo
         echo "Certificate details:"
-        echo "- Location: $INSTALL_DIR/ssl/"
+        echo "- Location: $SSL_DIR/"
         echo "- Certificate: localweb.crt"
         echo "- Private Key: localweb.key"
         echo "- PKCS#12 Bundle: localweb.pfx (password: localweb)"
+        echo "- PEM Bundle: localweb.pem"
         echo "- Valid for: $SSL_DAYS days"
         echo "- Common Name: $SSL_CN"
         
@@ -788,12 +618,12 @@ EOF
             openssl x509 -noout -ext subjectAltName -in localweb.crt 2>/dev/null | grep -v "X509v3 Subject Alternative Name" | sed 's/^[ \t]*/  /'
         fi
     else
-        rm -f generate_cert.py localweb.key localweb.crt localweb.pfx
+        rm -f generate_cert.py localweb.key localweb.crt localweb.pfx localweb.pem
         print_error "Failed to generate SSL certificates."
         return 1
     fi
     
-    cd "$INSTALL_DIR"
+    cd "$WORK_DIR"
 }
 
 # Create SSL certificate management utilities
@@ -801,7 +631,7 @@ create_ssl_utilities() {
     print_info "Creating SSL certificate management utilities..."
     
     # Create certificate information script
-    cat > "$INSTALL_DIR/ssl/cert-info.sh" << 'EOF'
+    cat > "$SSL_DIR/cert-info.sh" << 'EOF'
 #!/bin/bash
 # SSL Certificate Information Script
 
@@ -847,11 +677,26 @@ else
 fi
 
 # Days until expiration
-days_left=$(openssl x509 -checkend 0 -noout -in "$CERT_FILE" 2>/dev/null && echo $(($(date -d "$(openssl x509 -enddate -noout -in "$CERT_FILE" | cut -d= -f2)" +%s) - $(date +%s))) || echo "0")
-if [ "$days_left" -gt 0 ]; then
-    echo "Days until expiration: $((days_left / 86400))"
-else
-    echo "Days until expiration: Certificate expired"
+if command -v date &> /dev/null; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS date command
+        exp_date=$(openssl x509 -enddate -noout -in "$CERT_FILE" | cut -d= -f2)
+        exp_timestamp=$(date -j -f "%b %d %T %Y %Z" "$exp_date" +%s 2>/dev/null || echo "0")
+        current_timestamp=$(date +%s)
+        days_left=$(( (exp_timestamp - current_timestamp) / 86400 ))
+    else
+        # Linux date command
+        exp_date=$(openssl x509 -enddate -noout -in "$CERT_FILE" | cut -d= -f2)
+        exp_timestamp=$(date -d "$exp_date" +%s 2>/dev/null || echo "0")
+        current_timestamp=$(date +%s)
+        days_left=$(( (exp_timestamp - current_timestamp) / 86400 ))
+    fi
+    
+    if [ "$days_left" -gt 0 ]; then
+        echo "Days until expiration: $days_left"
+    else
+        echo "Days until expiration: Certificate expired"
+    fi
 fi
 
 echo
@@ -872,62 +717,8 @@ echo
 echo "==============================================="
 EOF
 
-    # Create certificate renewal script
-    cat > "$INSTALL_DIR/ssl/renew-cert.sh" << 'EOF'
-#!/bin/bash
-# SSL Certificate Renewal Script
-
-SSL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CERT_FILE="$SSL_DIR/localweb.crt"
-KEY_FILE="$SSL_DIR/localweb.key"
-
-echo "==============================================="
-echo "  SSL Certificate Renewal"
-echo "==============================================="
-echo
-
-if [ ! -f "$CERT_FILE" ]; then
-    echo "No existing certificate found. Please run the installer first."
-    exit 1
-fi
-
-# Check if certificate is expiring soon (within 30 days)
-if command -v openssl &> /dev/null; then
-    if openssl x509 -checkend 2592000 -noout -in "$CERT_FILE" >/dev/null 2>&1; then
-        echo "Current certificate is still valid for more than 30 days."
-        echo "Current expiry: $(openssl x509 -noout -enddate -in "$CERT_FILE" | sed 's/notAfter=//')"
-        echo
-        read -p "Do you want to renew anyway? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "Certificate renewal cancelled."
-            exit 0
-        fi
-    else
-        echo "Certificate is expiring soon or already expired."
-        echo "Current expiry: $(openssl x509 -noout -enddate -in "$CERT_FILE" | sed 's/notAfter=//')"
-        echo "Automatic renewal required."
-    fi
-fi
-
-# Backup existing certificates
-echo "Backing up existing certificates..."
-cp "$CERT_FILE" "$CERT_FILE.backup.$(date +%Y%m%d_%H%M%S)"
-cp "$KEY_FILE" "$KEY_FILE.backup.$(date +%Y%m%d_%H%M%S)"
-
-# Re-run certificate generation
-echo "Generating new certificate..."
-cd "$SSL_DIR/.."
-if [ -f "install.sh" ]; then
-    # Extract and run just the SSL generation part
-    echo "Please run the installer again and select the SSL setup option."
-else
-    echo "Installer not found. Please run the full installation again."
-fi
-EOF
-
     # Create certificate verification script
-    cat > "$INSTALL_DIR/ssl/verify-cert.sh" << 'EOF'
+    cat > "$SSL_DIR/verify-cert.sh" << 'EOF'
 #!/bin/bash
 # SSL Certificate Verification Script
 
@@ -970,8 +761,17 @@ fi
 
 # Verify certificate and key match
 echo "Verifying certificate and key match..."
-cert_modulus=$(openssl x509 -noout -modulus -in "$CERT_FILE" | md5sum)
-key_modulus=$(openssl rsa -noout -modulus -in "$KEY_FILE" | md5sum)
+if command -v md5sum &> /dev/null; then
+    cert_modulus=$(openssl x509 -noout -modulus -in "$CERT_FILE" | md5sum)
+    key_modulus=$(openssl rsa -noout -modulus -in "$KEY_FILE" | md5sum)
+elif command -v md5 &> /dev/null; then
+    cert_modulus=$(openssl x509 -noout -modulus -in "$CERT_FILE" | md5)
+    key_modulus=$(openssl rsa -noout -modulus -in "$KEY_FILE" | md5)
+else
+    echo "No MD5 utility available. Skipping modulus check."
+    cert_modulus="skip"
+    key_modulus="skip"
+fi
 
 if [ "$cert_modulus" = "$key_modulus" ]; then
     echo "✓ Certificate and private key match"
@@ -980,12 +780,12 @@ else
     exit 1
 fi
 
-# Test HTTPS connection
-echo "Testing HTTPS connection..."
-echo "Starting temporary server on port 9443..."
-
-# Create temporary server config
-cat > "$SSL_DIR/test-server.js" << 'EOFJS'
+# Test HTTPS connection if Node.js is available
+if command -v node &> /dev/null; then
+    echo "Testing HTTPS connection..."
+    
+    # Create temporary server config
+    cat > "$SSL_DIR/test-server.js" << 'EOFJS'
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -1002,29 +802,27 @@ const server = https.createServer(options, (req, res) => {
 
 server.listen(9443, () => {
   console.log('Test server running on https://localhost:9443');
-  console.log('Press Ctrl+C to stop');
-});
-
-process.on('SIGINT', () => {
-  console.log('\nStopping test server...');
-  server.close(() => {
-    console.log('Test server stopped');
+  setTimeout(() => {
+    server.close();
     process.exit(0);
-  });
+  }, 2000);
 });
 EOFJS
 
-# Run test server in background
-if command -v node &> /dev/null; then
+    # Run test server
     node "$SSL_DIR/test-server.js" &
     TEST_PID=$!
-    sleep 2
+    sleep 1
     
     # Test connection
-    if curl -k -s https://localhost:9443 | grep -q "Certificate is working"; then
-        echo "✓ HTTPS connection test successful"
+    if command -v curl &> /dev/null; then
+        if curl -k -s https://localhost:9443 | grep -q "Certificate is working"; then
+            echo "✓ HTTPS connection test successful"
+        else
+            echo "✗ HTTPS connection test failed"
+        fi
     else
-        echo "✗ HTTPS connection test failed"
+        echo "curl not available. Skipping connection test."
     fi
     
     # Clean up
@@ -1039,260 +837,59 @@ echo "Certificate verification complete!"
 EOF
 
     # Make scripts executable
-    chmod +x "$INSTALL_DIR/ssl/cert-info.sh"
-    chmod +x "$INSTALL_DIR/ssl/renew-cert.sh"
-    chmod +x "$INSTALL_DIR/ssl/verify-cert.sh"
+    chmod +x "$SSL_DIR/cert-info.sh"
+    chmod +x "$SSL_DIR/verify-cert.sh"
     
     print_success "SSL management utilities created:"
     echo "  - cert-info.sh: Display certificate information"
-    echo "  - renew-cert.sh: Renew expiring certificates"
     echo "  - verify-cert.sh: Verify certificate integrity"
+    echo "  - Run: $SSL_DIR/cert-info.sh"
+    echo "  - Run: $SSL_DIR/verify-cert.sh"
 }
 
-# Create start scripts and shortcuts
-create_shortcuts() {
-    clear
-    echo
-    echo "==============================================="
-    echo "  Step 6: Creating Start Scripts"
-    echo "==============================================="
-    echo
-    
-    # Create start script
-    print_info "Creating start script..."
-    cat > "$INSTALL_DIR/start-localweb.sh" << EOF
-#!/bin/bash
-cd "$INSTALL_DIR"
-node server.js
-EOF
-    chmod +x "$INSTALL_DIR/start-localweb.sh"
-    
-    # Create command-line shortcut
-    LOCAL_BIN="$HOME/.local/bin"
-    mkdir -p "$LOCAL_BIN"
-    ln -sf "$INSTALL_DIR/start-localweb.sh" "$LOCAL_BIN/localweb"
-    
-    print_success "Start script created"
-    
-    # Add to PATH if not already there
-    if [[ ":$PATH:" != *":$LOCAL_BIN:"* ]]; then
-        print_info "Adding $LOCAL_BIN to PATH..."
-        
-        # Detect shell and update appropriate config file
-        if [ -n "$ZSH_VERSION" ]; then
-            echo "export PATH=\"\$PATH:$LOCAL_BIN\"" >> "$HOME/.zshrc"
-        elif [ -n "$BASH_VERSION" ]; then
-            echo "export PATH=\"\$PATH:$LOCAL_BIN\"" >> "$HOME/.bashrc"
-        fi
-        
-        print_warning "Please restart your terminal or run: export PATH=\"\$PATH:$LOCAL_BIN\""
-    fi
-    
-    # Create desktop entry for Linux desktop environments
-    if [[ "$OS" != "macos" ]] && [ -d "$HOME/.local/share/applications" ]; then
-        print_info "Creating desktop shortcut..."
-        cat > "$HOME/.local/share/applications/localweb.desktop" << EOF
-[Desktop Entry]
-Name=LocalWeb Server
-Comment=Local file sharing server
-Exec=$INSTALL_DIR/start-localweb.sh
-Icon=folder-remote
-Terminal=true
-Type=Application
-Categories=Network;FileTransfer;
-EOF
-        chmod +x "$HOME/.local/share/applications/localweb.desktop"
-        print_success "Desktop shortcut created"
-    fi
-}
-
-# Setup as system service (optional)
-setup_service() {
-    echo
-    read -p "Would you like to install LocalWeb as a system service? (y/N) " -n 1 -r
-    echo
-    
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        return 0
-    fi
-    
-    if [[ "$OS" == "macos" ]]; then
-        setup_launchd_service
-    else
-        setup_systemd_service
-    fi
-}
-
-# Setup systemd service for Linux
-setup_systemd_service() {
-    print_info "Creating systemd service..."
-    
-    SERVICE_FILE="/tmp/localweb.service"
-    cat > "$SERVICE_FILE" << EOF
-[Unit]
-Description=LocalWeb Server
-After=network.target
-
-[Service]
-Type=simple
-User=$USER
-WorkingDirectory=$INSTALL_DIR
-ExecStart=$(which node) $INSTALL_DIR/server.js
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    
-    sudo mv "$SERVICE_FILE" /etc/systemd/system/localweb.service
-    sudo systemctl daemon-reload
-    sudo systemctl enable localweb.service
-    sudo systemctl start localweb.service
-    
-    print_success "Systemd service installed and started"
-}
-
-# Setup launchd service for macOS
-setup_launchd_service() {
-    print_info "Creating launchd service..."
-    
-    PLIST_FILE="$HOME/Library/LaunchAgents/com.localweb.server.plist"
-    cat > "$PLIST_FILE" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.localweb.server</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$(which node)</string>
-        <string>$INSTALL_DIR/server.js</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>$INSTALL_DIR</string>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-</dict>
-</plist>
-EOF
-    
-    launchctl load "$PLIST_FILE"
-    print_success "Launchd service installed and started"
-}
-
-# Configure firewall
-configure_firewall() {
-    clear
-    echo
-    echo "==============================================="
-    echo "  Step 7: Firewall Configuration"
-    echo "==============================================="
-    echo
-    
-    case $OS in
-        "ubuntu"|"debian")
-            if command -v ufw &> /dev/null; then
-                print_info "Configuring UFW firewall..."
-                sudo ufw allow 8080/tcp comment "LocalWeb HTTP"
-                sudo ufw allow 8443/tcp comment "LocalWeb HTTPS"
-                print_success "Firewall rules added"
-            else
-                print_info "UFW not found. Please configure your firewall manually."
-            fi
-            ;;
-        "fedora"|"rhel"|"centos")
-            if command -v firewall-cmd &> /dev/null; then
-                print_info "Configuring firewalld..."
-                sudo firewall-cmd --permanent --add-port=8080/tcp
-                sudo firewall-cmd --permanent --add-port=8443/tcp
-                sudo firewall-cmd --reload
-                print_success "Firewall rules added"
-            else
-                print_info "firewalld not found. Please configure your firewall manually."
-            fi
-            ;;
-        "macos")
-            print_info "macOS firewall configuration may require manual setup."
-            print_info "You may need to allow incoming connections when prompted."
-            ;;
-        *)
-            print_info "Please configure your firewall manually to allow ports 8080 and 8443."
-            ;;
-    esac
-}
-
-# Installation complete
+# Show completion message
 show_completion() {
-    clear
     echo
     echo "==============================================="
-    echo "  Installation Complete!"
+    echo "  SSL Certificate Setup Complete!"
     echo "==============================================="
     echo
-    print_success "LocalWeb Server has been successfully installed."
+    print_success "SSL certificates have been successfully generated."
     echo
-    echo "Installation Details:"
-    echo "---------------------"
-    echo "Location: $INSTALL_DIR"
-    echo "Share Directory: $SHARE_DIR"
-    echo "Username: $AUTH_USER"
-    echo "Password: ********"
+    echo "Files created:"
+    echo "- $SSL_DIR/localweb.crt (Certificate)"
+    echo "- $SSL_DIR/localweb.key (Private Key)"
+    echo "- $SSL_DIR/localweb.pfx (PKCS#12 Bundle)"
+    echo "- $SSL_DIR/localweb.pem (PEM Bundle)"
+    echo "- $SSL_DIR/cert-info.sh (Certificate Info Tool)"
+    echo "- $SSL_DIR/verify-cert.sh (Certificate Verification Tool)"
     echo
+    echo "Your LocalWeb Server can now use HTTPS on port 8443!"
     echo "Access URLs:"
-    echo "---------------------"
-    echo "HTTP:  http://localhost:8080"
-    echo "HTTPS: https://localhost:8443"
+    echo "  HTTP:  http://localhost:8080"
+    echo "  HTTPS: https://localhost:8443"
     echo
-    echo "You can start the server by:"
-    echo "1. Running: localweb"
-    echo "2. Running: $INSTALL_DIR/start-localweb.sh"
-    
-    if systemctl is-active --quiet localweb.service 2>/dev/null; then
-        echo "3. The service is already running in the background"
-    elif launchctl list | grep -q com.localweb.server 2>/dev/null; then
-        echo "3. The service is already running in the background"
-    fi
-    
+    echo "Note: Since this is a self-signed certificate, browsers will show"
+    echo "a security warning. This is normal and can be safely ignored for"
+    echo "local development."
     echo
-    read -p "Would you like to start the server now? (Y/n) " -n 1 -r
+    echo "To view certificate information, run:"
+    echo "  $SSL_DIR/cert-info.sh"
     echo
-    
-    if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
-        print_info "Starting LocalWeb Server..."
-        cd "$INSTALL_DIR"
-        node server.js &
-        sleep 2
-        
-        # Try to open browser
-        if command -v xdg-open &> /dev/null; then
-            xdg-open "http://localhost:8080"
-        elif command -v open &> /dev/null; then
-            open "http://localhost:8080"
-        else
-            print_info "Please open http://localhost:8080 in your browser"
-        fi
-    fi
+    echo "To verify certificate integrity, run:"
+    echo "  $SSL_DIR/verify-cert.sh"
 }
 
-# Main installation flow
+# Main execution
 main() {
     detect_os
-    check_root
     show_welcome
-    check_nodejs
-    choose_install_dir
-    install_files
-    configure_app
-    create_ssl_certs
-    create_shortcuts
-    setup_service
-    configure_firewall
+    determine_working_dir
+    check_existing_certificates
+    choose_ssl_method
+    create_ssl_utilities
     show_completion
 }
 
 # Run main function
-main
+main "$@"
