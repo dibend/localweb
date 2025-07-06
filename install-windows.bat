@@ -88,7 +88,7 @@ if %errorLevel% neq 0 (
         if /i "!INSTALL_NODE!"=="Y" (
             echo.
             echo Downloading Node.js installer...
-            powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi' -OutFile '%TEMP%\node-installer.msi'"
+            bitsadmin /transfer "NodeJS Download" /download /priority normal "https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi" "%TEMP%\node-installer.msi"
             
             echo Installing Node.js...
             msiexec /i "%TEMP%\node-installer.msi" /qb
@@ -240,7 +240,15 @@ echo pause
 
 :: Create desktop shortcut
 echo Creating desktop shortcut...
-powershell -Command "$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\LocalWeb Server.lnk'); $Shortcut.TargetPath = '!INSTALL_DIR!\start-localweb.bat'; $Shortcut.IconLocation = 'shell32.dll,18'; $Shortcut.Save()"
+(
+echo Set WshShell = CreateObject("WScript.Shell"^)
+echo Set lnk = WshShell.CreateShortcut("%USERPROFILE%\Desktop\LocalWeb Server.lnk"^)
+echo lnk.TargetPath = "!INSTALL_DIR!\start-localweb.bat"
+echo lnk.IconLocation = "shell32.dll,18"
+echo lnk.Save
+) > "%TEMP%\create_desktop_shortcut.vbs"
+cscript //nologo "%TEMP%\create_desktop_shortcut.vbs"
+del "%TEMP%\create_desktop_shortcut.vbs"
 echo ✓ Desktop shortcut created
 
 :: Create Start Menu shortcut
@@ -248,7 +256,15 @@ echo Creating Start Menu shortcut...
 if not exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\LocalWeb" (
     mkdir "%APPDATA%\Microsoft\Windows\Start Menu\Programs\LocalWeb"
 )
-powershell -Command "$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%APPDATA%\Microsoft\Windows\Start Menu\Programs\LocalWeb\LocalWeb Server.lnk'); $Shortcut.TargetPath = '!INSTALL_DIR!\start-localweb.bat'; $Shortcut.IconLocation = 'shell32.dll,18'; $Shortcut.Save()"
+(
+echo Set WshShell = CreateObject("WScript.Shell"^)
+echo Set lnk = WshShell.CreateShortcut("%APPDATA%\Microsoft\Windows\Start Menu\Programs\LocalWeb\LocalWeb Server.lnk"^)
+echo lnk.TargetPath = "!INSTALL_DIR!\start-localweb.bat"
+echo lnk.IconLocation = "shell32.dll,18"
+echo lnk.Save
+) > "%TEMP%\create_startmenu_shortcut.vbs"
+cscript //nologo "%TEMP%\create_startmenu_shortcut.vbs"
+del "%TEMP%\create_startmenu_shortcut.vbs"
 echo ✓ Start Menu shortcut created
 
 :: Windows Service (optional)
