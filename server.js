@@ -308,13 +308,28 @@ console.log('"ip","date","method","url","status","time"');
 
 // Load SSL credentials only when starting the HTTPS server
 function startServers() {
-  const sslKey = fs.readFileSync('ssl/localweb.key', 'utf8');
-  const sslCert = fs.readFileSync('ssl/localweb.crt', 'utf8');
+  let creds;
 
-  const creds = {
-    key: sslKey,
-    cert: sslCert,
-  };
+  /*
+   * Prefer separate PEM key/certificate files (localweb.key / localweb.crt).
+   * If they are not found (common on Windows where we might only have a PFX),
+   * fall back to loading a PFX bundle (localweb.pfx) created by the installer.
+   * The Windows installer exports the PFX with the fixed passphrase "localweb".
+   */
+  try {
+    const sslKey = fs.readFileSync('ssl/localweb.key', 'utf8');
+    const sslCert = fs.readFileSync('ssl/localweb.crt', 'utf8');
+    creds = { key: sslKey, cert: sslCert };
+  } catch (pemErr) {
+    try {
+      const pfx = fs.readFileSync('ssl/localweb.pfx');
+      creds = { pfx, passphrase: 'localweb' };
+      console.warn('Loaded SSL credentials from localweb.pfx – make sure the passphrase matches.');
+    } catch (pfxErr) {
+      console.error('Unable to load SSL certificates. Make sure you ran the installer SSL wizard.', pemErr);
+      process.exit(1);
+    }
+  }
 
   http.createServer(app).listen(8080, () => {
     console.log('HTTP server listening on port 8080');

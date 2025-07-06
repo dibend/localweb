@@ -28,7 +28,7 @@ The installers will:
 - Check and install Node.js if needed
 - Set up the application with dependencies
 - Configure authentication credentials
-- Generate SSL certificates
+- Runs an interactive SSL Certificate Setup Wizard that generates self-signed certificates
 - Create shortcuts and optionally install as a system service
 - Configure firewall rules
 
