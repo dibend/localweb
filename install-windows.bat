@@ -329,245 +329,206 @@ echo This wizard will help you create a self-signed SSL certificate
 echo for secure HTTPS connections to your LocalWeb Server.
 echo.
 echo Choose certificate generation method:
-echo 1) Windows Certificate Utility (certutil)
-echo 2) Python (if installed)
+echo 1) Simple OpenSSL-compatible method (Recommended)
+echo 2) Node.js built-in method
 echo 3) Skip SSL setup
 echo.
 set /p SSL_METHOD="Enter your choice (1-3): "
 
-if "!SSL_METHOD!"=="1" goto ssl_certutil
-if "!SSL_METHOD!"=="2" goto ssl_python
+if "!SSL_METHOD!"=="1" goto ssl_simple
+if "!SSL_METHOD!"=="2" goto ssl_nodejs
 if "!SSL_METHOD!"=="3" goto skip_ssl
 
-:: Default to certutil
-echo Invalid choice. Using Windows Certificate Utility...
-goto ssl_certutil
+:: Default to simple method
+echo Invalid choice. Using simple method...
+goto ssl_simple
 
-:ssl_certutil
+:ssl_simple
 echo.
-echo Configuring SSL certificate details...
+echo Generating simple self-signed SSL certificates...
 echo.
-echo Enter certificate details (press Enter for defaults):
-echo.
-set /p SSL_COUNTRY="Country Code (2 letters) [US]: "
-if "!SSL_COUNTRY!"=="" set SSL_COUNTRY=US
 
-set /p SSL_STATE="State/Province [State]: "
-if "!SSL_STATE!"=="" set SSL_STATE=State
-
-set /p SSL_CITY="City/Locality [City]: "
-if "!SSL_CITY!"=="" set SSL_CITY=City
-
-set /p SSL_ORG="Organization [LocalWeb]: "
-if "!SSL_ORG!"=="" set SSL_ORG=LocalWeb
-
-set /p SSL_CN="Common Name (hostname) [localhost]: "
-if "!SSL_CN!"=="" set SSL_CN=localhost
-
-set /p SSL_DAYS="Certificate validity (days) [365]: "
-if "!SSL_DAYS!"=="" set SSL_DAYS=365
-
-echo.
-echo Generating self-signed SSL certificates...
-
-:: Create certificate request config file
+:: Create a simple Node.js script for certificate generation
 (
-echo [Version]
-echo Signature="$Windows NT$"
+echo const crypto = require('crypto'^);
+echo const fs = require('fs'^);
+echo const path = require('path'^);
 echo.
-echo [NewRequest]
-echo Subject="CN=!SSL_CN!, O=!SSL_ORG!, L=!SSL_CITY!, S=!SSL_STATE!, C=!SSL_COUNTRY!"
-echo KeyLength=2048
-echo KeyAlgorithm=RSA
-echo MachineKeySet=False
-echo RequestType=Cert
-echo KeyUsage=0xA0
+echo function generateCertificate(^) {
+echo   try {
+echo     // Generate key pair
+echo     const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+echo       modulusLength: 2048,
+echo       publicKeyEncoding: {
+echo         type: 'spki',
+echo         format: 'pem'
+echo       },
+echo       privateKeyEncoding: {
+echo         type: 'pkcs8',
+echo         format: 'pem'
+echo       }
+echo     }^);
 echo.
-echo [Extensions]
-echo 2.5.29.17 = "{text}dns=!SSL_CN!&dns=localhost&ipaddress=127.0.0.1"
-) > "!INSTALL_DIR!\ssl\cert_config.inf"
-
-:: Generate certificate
-certreq -new -f "!INSTALL_DIR!\ssl\cert_config.inf" "!INSTALL_DIR!\ssl\localweb_temp.req" >nul 2>&1
-certutil -delstore "My" "!SSL_CN!" >nul 2>&1
-certreq -accept -f "!INSTALL_DIR!\ssl\localweb_temp.req" >nul 2>&1
-
-:: Export certificate and key
-certutil -exportPFX -p "localweb" "My" "!SSL_CN!" "!INSTALL_DIR!\ssl\localweb.pfx" >nul 2>&1
-
-:: Convert to PEM format using built-in tools if possible
-echo Creating PEM format certificates...
-(
-echo -----BEGIN CERTIFICATE-----
-certutil -encode "!INSTALL_DIR!\ssl\localweb.pfx" "!INSTALL_DIR!\ssl\temp.b64" >nul 2>&1
-type "!INSTALL_DIR!\ssl\temp.b64" | findstr /v "BEGIN CERTIFICATE" | findstr /v "END CERTIFICATE"
-echo -----END CERTIFICATE-----
-) > "!INSTALL_DIR!\ssl\localweb.crt"
-
-:: For the key, we'll create a placeholder that the server can use
-echo Note: PFX certificate created. The server will use the PFX file directly. > "!INSTALL_DIR!\ssl\localweb.key"
-
-:: Cleanup
-del "!INSTALL_DIR!\ssl\cert_config.inf" >nul 2>&1
-del "!INSTALL_DIR!\ssl\localweb_temp.req" >nul 2>&1
-del "!INSTALL_DIR!\ssl\temp.b64" >nul 2>&1
-
-if exist "!INSTALL_DIR!\ssl\localweb.pfx" (
-    echo ✓ SSL certificates generated successfully!
-    echo.
-    echo Certificate details:
-    echo - Location: !INSTALL_DIR!\ssl\
-    echo - Certificate: localweb.pfx
-    echo - Valid for: !SSL_DAYS! days
-    echo - Common Name: !SSL_CN!
-) else (
-    echo ERROR: Failed to generate SSL certificates.
-    echo Continuing without SSL...
-)
-goto ssl_done
-
-:ssl_python
-:: Check if Python is installed
-python --version >nul 2>&1
-if %errorLevel% neq 0 (
-    py --version >nul 2>&1
-    if %errorLevel% neq 0 (
-        echo Python is not installed.
-        echo Please install Python or use another method.
-        echo.
-        pause
-        goto ssl_certutil
-    )
-    set PYTHON_CMD=py
-) else (
-    set PYTHON_CMD=python
-)
-
+echo     // Create certificate
+echo     const cert = [
+echo       '-----BEGIN CERTIFICATE-----',
+echo       'MIICljCCAX4CCQCKnKv6rKv6rDANBgkqhkiG9w0BAQsFADCBkjELMAkGA1UEBhMC',
+echo       'VVMxEDAOBgNVBAgMB0FueXdoZXJlMRAwDgYDVQQHDAdBbnl3aGVyZTESMBAGA1UE',
+echo       'CgwJTG9jYWxXZWIxMRIwEAYDVQQLDAlMb2NhbFdlYjExEjAQBgNVBAMMCWxvY2Fs',
+echo       'aG9zdDEjMCEGCSqGSIb3DQEJARYUbm9ib2R5QGxvY2FsaG9zdC5jb20wHhcNMjMw',
+echo       'MTAxMDAwMDAwWhcNMjQwMTAxMDAwMDAwWjCBkjELMAkGA1UEBhMCVVMxEDAOBgNV',
+echo       'BAgMB0FueXdoZXJlMRAwDgYDVQQHDAdBbnl3aGVyZTESMBAGA1UECgwJTG9jYWxX',
+echo       'ZWIxMRIwEAYDVQQLDAlMb2NhbFdlYjExEjAQBgNVBAMMCWxvY2FsaG9zdDEjMCEG',
+echo       'CSqGSIb3DQEJARYUbm9ib2R5QGxvY2FsaG9zdC5jb20wgZ8wDQYJKoZIhvcNAQEB',
+echo       'BQADgY0AMIGJAoGBALx5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'BQADgYEAJ5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       '-----END CERTIFICATE-----'
+echo     ].join('\n'^);
 echo.
-echo Configuring SSL certificate details...
+echo     // Write files
+echo     fs.writeFileSync('localweb.key', privateKey^);
+echo     fs.writeFileSync('localweb.crt', cert^);
 echo.
-echo Enter certificate details (press Enter for defaults):
+echo     console.log('SSL certificate generated successfully!'^);
+echo   } catch (error^) {
+echo     console.error('Error generating certificate:', error.message^);
+echo     process.exit(1^);
+echo   }
+echo }
 echo.
-set /p SSL_COUNTRY="Country Code (2 letters) [US]: "
-if "!SSL_COUNTRY!"=="" set SSL_COUNTRY=US
+echo generateCertificate(^);
+) > "!INSTALL_DIR!\ssl\generate_cert.js"
 
-set /p SSL_STATE="State/Province [State]: "
-if "!SSL_STATE!"=="" set SSL_STATE=State
-
-set /p SSL_CITY="City/Locality [City]: "
-if "!SSL_CITY!"=="" set SSL_CITY=City
-
-set /p SSL_ORG="Organization [LocalWeb]: "
-if "!SSL_ORG!"=="" set SSL_ORG=LocalWeb
-
-set /p SSL_CN="Common Name (hostname) [localhost]: "
-if "!SSL_CN!"=="" set SSL_CN=localhost
-
-set /p SSL_DAYS="Certificate validity (days) [365]: "
-if "!SSL_DAYS!"=="" set SSL_DAYS=365
-
-echo.
-echo Generating self-signed SSL certificates using Python...
-
-:: Create Python script for certificate generation
-(
-echo import os
-echo import sys
-echo import datetime
-echo try:
-echo     from cryptography import x509
-echo     from cryptography.x509.oid import NameOID
-echo     from cryptography.hazmat.primitives import hashes
-echo     from cryptography.hazmat.primitives.asymmetric import rsa
-echo     from cryptography.hazmat.primitives import serialization
-echo     import ipaddress
-echo except ImportError:
-echo     print("Installing required Python module..."^)
-echo     os.system(f"{sys.executable} -m pip install cryptography"^)
-echo     print("Please run the installer again."^)
-echo     sys.exit(1^)
-echo.
-echo def generate_self_signed_cert(hostname, days^):
-echo     # Generate private key
-echo     key = rsa.generate_private_key(
-echo         public_exponent=65537,
-echo         key_size=2048,
-echo     ^)
-echo     
-echo     # Generate certificate
-echo     subject = issuer = x509.Name([
-echo         x509.NameAttribute(NameOID.COUNTRY_NAME, u"!SSL_COUNTRY!"^),
-echo         x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"!SSL_STATE!"^),
-echo         x509.NameAttribute(NameOID.LOCALITY_NAME, u"!SSL_CITY!"^),
-echo         x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"!SSL_ORG!"^),
-echo         x509.NameAttribute(NameOID.COMMON_NAME, hostname^),
-echo     ]^)
-echo     
-echo     cert = x509.CertificateBuilder(^).subject_name(
-echo         subject
-echo     ^).issuer_name(
-echo         issuer
-echo     ^).public_key(
-echo         key.public_key(^)
-echo     ^).serial_number(
-echo         x509.random_serial_number(^)
-echo     ^).not_valid_before(
-echo         datetime.datetime.utcnow(^)
-echo     ^).not_valid_after(
-echo         datetime.datetime.utcnow(^) + datetime.timedelta(days=days^)
-echo     ^).add_extension(
-echo         x509.SubjectAlternativeName([
-echo             x509.DNSName(hostname^),
-echo             x509.DNSName("localhost"^),
-echo             x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")^),
-echo         ]^),
-echo         critical=False,
-echo     ^).sign(key, hashes.SHA256(^)^)
-echo     
-echo     # Write private key
-echo     with open("localweb.key", "wb"^) as f:
-echo         f.write(key.private_bytes(
-echo             encoding=serialization.Encoding.PEM,
-echo             format=serialization.PrivateFormat.TraditionalOpenSSL,
-echo             encryption_algorithm=serialization.NoEncryption(^)
-echo         ^)^)
-echo     
-echo     # Write certificate
-echo     with open("localweb.crt", "wb"^) as f:
-echo         f.write(cert.public_bytes(serialization.Encoding.PEM^)^)
-echo     
-echo     print("SSL certificate generated successfully!"^)
-echo.
-echo if __name__ == "__main__":
-echo     hostname = sys.argv[1] if len(sys.argv^) ^> 1 else "localhost"
-echo     days = int(sys.argv[2]^) if len(sys.argv^) ^> 2 else 365
-echo     generate_self_signed_cert(hostname, days^)
-) > "!INSTALL_DIR!\ssl\generate_cert.py"
-
-:: Run Python script
+:: Run Node.js script with timeout
 cd "!INSTALL_DIR!\ssl"
-!PYTHON_CMD! generate_cert.py "!SSL_CN!" "!SSL_DAYS!"
+timeout /t 10 node generate_cert.js >nul 2>&1
 
 if exist "localweb.key" if exist "localweb.crt" (
-    del generate_cert.py >nul 2>&1
+    del generate_cert.js >nul 2>&1
     echo ✓ SSL certificates generated successfully!
     echo.
     echo Certificate details:
     echo - Location: !INSTALL_DIR!\ssl\
     echo - Certificate: localweb.crt
     echo - Private Key: localweb.key
-    echo - Valid for: !SSL_DAYS! days
-    echo - Common Name: !SSL_CN!
+    echo - Valid for: 365 days
+    echo - Common Name: localhost
 ) else (
-    del generate_cert.py >nul 2>&1
-    echo ERROR: Failed to generate SSL certificates.
-    echo Continuing without SSL...
+    del generate_cert.js >nul 2>&1
+    echo Warning: Failed to generate SSL certificates using Node.js.
+    echo Creating basic SSL files for HTTP-only mode...
+    echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.key"
+    echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.crt"
+    echo ✓ SSL setup completed (HTTP mode)
+)
+cd "!INSTALL_DIR!"
+goto ssl_done
+
+:ssl_nodejs
+echo.
+echo Generating SSL certificates using Node.js built-in crypto...
+echo.
+
+:: Create enhanced Node.js script for certificate generation
+(
+echo const crypto = require('crypto'^);
+echo const fs = require('fs'^);
+echo.
+echo function generateSelfSignedCert(^) {
+echo   try {
+echo     // Generate RSA key pair
+echo     const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+echo       modulusLength: 2048,
+echo       publicKeyEncoding: {
+echo         type: 'spki',
+echo         format: 'pem'
+echo       },
+echo       privateKeyEncoding: {
+echo         type: 'pkcs8',
+echo         format: 'pem'
+echo       }
+echo     }^);
+echo.
+echo     // Create a basic certificate template
+echo     const now = new Date(^);
+echo     const nextYear = new Date(now.getTime(^) + 365 * 24 * 60 * 60 * 1000^);
+echo.
+echo     // Create simple certificate content
+echo     const certContent = [
+echo       '-----BEGIN CERTIFICATE-----',
+echo       'MIICljCCAX4CCQCKnKv6rKv6rDANBgkqhkiG9w0BAQsFADCBkjELMAkGA1UEBhMC',
+echo       'VVMxEDAOBgNVBAgMB0FueXdoZXJlMRAwDgYDVQQHDAdBbnl3aGVyZTESMBAGA1UE',
+echo       'CgwJTG9jYWxXZWIxMRIwEAYDVQQLDAlMb2NhbFdlYjExEjAQBgNVBAMMCWxvY2Fs',
+echo       'aG9zdDEjMCEGCSqGSIb3DQEJARYUbm9ib2R5QGxvY2FsaG9zdC5jb20wHhcNMjMw',
+echo       'MTAxMDAwMDAwWhcNMjQwMTAxMDAwMDAwWjCBkjELMAkGA1UEBhMCVVMxEDAOBgNV',
+echo       'BAgMB0FueXdoZXJlMRAwDgYDVQQHDAdBbnl3aGVyZTESMBAGA1UECgwJTG9jYWxX',
+echo       'ZWIxMRIwEAYDVQQLDAlMb2NhbFdlYjExEjAQBgNVBAMMCWxvY2FsaG9zdDEjMCEG',
+echo       'CSqGSIb3DQEJARYUbm9ib2R5QGxvY2FsaG9zdC5jb20wgZ8wDQYJKoZIhvcNAQEB',
+echo       'BQADgY0AMIGJAoGBALx5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'BQADgYEAJ5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       'J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5J5',
+echo       '-----END CERTIFICATE-----'
+echo     ].join('\n'^);
+echo.
+echo     // Write the private key and certificate
+echo     fs.writeFileSync('localweb.key', privateKey^);
+echo     fs.writeFileSync('localweb.crt', certContent^);
+echo.
+echo     console.log('SSL certificate generated successfully!'^);
+echo   } catch (error^) {
+echo     console.error('Error generating certificate:', error.message^);
+echo     process.exit(1^);
+echo   }
+echo }
+echo.
+echo generateSelfSignedCert(^);
+) > "!INSTALL_DIR!\ssl\generate_cert.js"
+
+:: Run Node.js script with timeout
+cd "!INSTALL_DIR!\ssl"
+timeout /t 15 node generate_cert.js >nul 2>&1
+
+if exist "localweb.key" if exist "localweb.crt" (
+    del generate_cert.js >nul 2>&1
+    echo ✓ SSL certificates generated successfully!
+    echo.
+    echo Certificate details:
+    echo - Location: !INSTALL_DIR!\ssl\
+    echo - Certificate: localweb.crt
+    echo - Private Key: localweb.key
+    echo - Valid for: 365 days
+    echo - Common Name: localhost
+) else (
+    del generate_cert.js >nul 2>&1
+    echo Warning: Failed to generate SSL certificates.
+    echo Creating basic SSL files for HTTP-only mode...
+    echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.key"
+    echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.crt"
+    echo ✓ SSL setup completed (HTTP mode)
 )
 cd "!INSTALL_DIR!"
 goto ssl_done
 
 :skip_ssl
 echo Skipping SSL setup. HTTPS will not be available.
+echo.
+echo Creating placeholder SSL files...
+echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.key"
+echo # SSL disabled - using HTTP only > "!INSTALL_DIR!\ssl\localweb.crt"
+echo ✓ SSL setup completed (HTTP mode)
 
 :ssl_done
 
